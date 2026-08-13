@@ -3018,7 +3018,10 @@ function renderPersonal() {
         <!-- 좌: 업무 포스트잇 (최대 4열) -->
         <div class="personal-task-pane">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:12px;color:#6a7480;">💡 카드를 드래그해서 순서를 변경할 수 있습니다</span>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              ${memberSyncTimes[m.id] ? `<span style="font-size:11px;color:#9eaab6;">🕐 마지막 저장: ${new Date(memberSyncTimes[m.id]).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+              <span style="font-size:12px;color:#6a7480;">💡 카드를 드래그해서 순서를 변경할 수 있습니다</span>
+            </div>
             <div style="display:flex;align-items:center;gap:12px;">
               <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6a7480;cursor:pointer;user-select:none;">
                 <input type="checkbox" id="personal-hide-done-${m.id}" ${personalHideDone?'checked':''} onchange="togglePersonalHideDone(this.checked)"> 완료 숨김
