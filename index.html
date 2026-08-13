@@ -886,6 +886,51 @@
     font-size:12px; color:#525f6e; margin-top:6px;
     border-top:1px solid rgba(80,100,130,.08); padding-top:6px;
   }
+  /* ── 반복 업무 페이지 ── */
+  .repeat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .repeat-card {
+    background: #fff; border: 1px solid var(--gray-200); border-radius: 10px;
+    padding: 16px; position: relative; transition: box-shadow .15s;
+  }
+  .repeat-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); }
+  .repeat-card.inactive { opacity: .55; }
+  .repeat-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .repeat-card-title { font-weight: 700; font-size: 14px; color: var(--gray-900); flex: 1; }
+  .repeat-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: #d4e5f7; color: #2d5f98; font-weight: 600;
+  }
+  .repeat-badge.inactive { background: var(--gray-200); color: var(--gray-500); }
+  .repeat-card-meta { font-size: 12px; color: #6a7480; display: grid; gap: 5px; margin-bottom: 12px; }
+  .repeat-card-meta span { display: flex; gap: 6px; align-items: center; }
+  .repeat-history { margin-top: 10px; border-top: 1px solid var(--gray-200); padding-top: 10px; }
+  .repeat-history-title { font-size: 11px; font-weight: 600; color: var(--gray-500); margin-bottom: 6px; }
+  .repeat-history-row {
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
+    padding: 4px 6px; border-radius: 6px; margin-bottom: 3px;
+  }
+  .repeat-history-row.done { background: #eafaf0; color: #3d6b52; }
+  .repeat-history-row.pending { background: #fdf0d0; color: #7a5828; }
+  .repeat-card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .repeat-section {
+    border: 1px solid #d4e5f7; border-radius: 8px;
+    padding: 12px 14px; margin-top: 10px; background: #f0f7ff;
+  }
+  .repeat-section-title {
+    font-size: 12px; font-weight: 700; color: #4c6f98; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .repeat-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .repeat-row label { font-size: 12px; color: #525f6e; white-space: nowrap; }
+  .repeat-row select, .repeat-row input[type="month"] {
+    font-size: 12px; padding: 4px 8px; border: 1px solid var(--gray-300);
+    border-radius: 6px; outline: none; font-family: inherit;
+  }
+  .repeat-row select:focus, .repeat-row input[type="month"]:focus {
+    border-color: var(--primary); box-shadow: 0 0 0 2px rgba(76,111,152,.15);
+  }
+  .repeat-enable-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .repeat-enable-row label { font-size: 13px; font-weight: 600; color: var(--primary); cursor: pointer; }
   /* ── 관리자 잠금 오버레이 ── */
   .admin-card-wrap { position: relative; }
   .admin-lock-overlay {
@@ -933,6 +978,7 @@
     <a onclick="showPage('dashboard')"><span class="icon">🏠</span> 대시보드</a>
     <a class="active" onclick="showPage('personal')"><span class="icon">👤</span> 개인별 현황</a>
     <a onclick="showPage('done')"><span class="icon">✅</span> 완료 업무</a>
+    <a onclick="showPage('repeat')"><span class="icon">🔁</span> 반복 업무</a>
     <a onclick="showPage('templates')"><span class="icon">📋</span> 템플릿</a>
     <a onclick="showPage('tasks')"><span class="icon">📝</span> 업무 목록</a>
     <a onclick="showPage('calendar')"><span class="icon">📅</span> 업무 캘린더</a>
@@ -1166,6 +1212,21 @@
       </div>
       <div class="done-member-tabs" id="done-member-tabs"></div>
       <div id="done-panels"></div>
+    </div>
+
+    <!-- ══════════ 반복 업무 ══════════ -->
+    <div id="page-repeat" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <p style="font-size:13px;color:#6a7480;">월 단위로 반복되는 업무를 설정하면, 해당 월에 자동으로 담당자의 개인 현황에 업무가 생성됩니다.</p>
+        <button class="btn btn-primary" onclick="openRepeatModal()">＋ 반복 업무 추가</button>
+      </div>
+      <div id="repeat-grid" class="repeat-grid"></div>
+      <div id="repeat-empty" class="empty-state" style="display:none;">
+        <div class="icon">🔁</div>
+        <p>설정된 반복 업무가 없습니다</p>
+        <p style="font-size:12px;color:#9eaab6;margin-top:4px;">정기적으로 반복되는 업무를 등록하면 자동으로 생성됩니다</p>
+        <button class="btn btn-primary" style="margin-top:14px;" onclick="openRepeatModal()">＋ 반복 업무 추가</button>
+      </div>
     </div>
 
     <!-- ══════════ 업무 캘린더 ══════════ -->
@@ -1409,6 +1470,37 @@
         <label>비고 / 설명</label>
         <textarea id="tpl-note" placeholder="이 템플릿에 대한 설명이나 주의사항을 입력하세요" style="min-height:80px;"></textarea>
       </div>
+      <!-- 반복 설정 -->
+      <div class="repeat-section">
+        <div class="repeat-section-title">🔁 반복 설정 <small style="font-weight:400;color:#6a7480;">(선택)</small></div>
+        <div class="repeat-enable-row">
+          <input type="checkbox" id="tpl-repeat-enable" style="width:15px;height:15px;" onchange="toggleTplRepeatSection(this.checked)">
+          <label for="tpl-repeat-enable">이 템플릿을 반복 업무로 설정</label>
+        </div>
+        <div id="tpl-repeat-detail" style="display:none;">
+          <div class="repeat-row" style="gap:14px;flex-wrap:wrap;">
+            <div>
+              <label>담당자</label><br>
+              <select id="tpl-repeat-member" style="margin-top:4px;font-size:12px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-family:inherit;outline:none;"></select>
+            </div>
+            <div>
+              <label>반복 주기</label><br>
+              <select id="tpl-repeat-interval" style="margin-top:4px;font-size:12px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-family:inherit;outline:none;">
+                <option value="1">매월 (1개월)</option>
+                <option value="2">2개월마다</option>
+                <option value="3" selected>3개월마다</option>
+                <option value="6">6개월마다 (반기)</option>
+                <option value="12">12개월마다 (연간)</option>
+              </select>
+            </div>
+            <div>
+              <label>다음 생성 월</label><br>
+              <input type="month" id="tpl-repeat-next" style="margin-top:4px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
+            </div>
+          </div>
+          <small style="color:#4c6f98;font-size:11px;margin-top:8px;display:block;">💡 저장 시 반복 업무 메뉴에 자동으로 등록됩니다.</small>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('tpl-modal')">취소</button>
@@ -1465,6 +1557,73 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('tpl-create-modal')">취소</button>
       <button class="btn btn-success" onclick="createTaskFromTemplate()">✅ 업무 생성</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── 반복 업무 추가/편집 모달 ───────────── -->
+<div class="modal-overlay" id="repeat-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="repeat-modal-title">🔁 반복 업무 추가</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('repeat-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="repeat-edit-id">
+      <div class="form-group">
+        <label>업무명 <span class="required">*</span></label>
+        <input type="text" id="rpt-name" placeholder="반복 업무명을 입력하세요">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>담당자 <span class="required">*</span></label>
+          <select id="rpt-member"></select>
+        </div>
+        <div class="form-group">
+          <label>카테고리</label>
+          <select id="rpt-category"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>우선순위</label>
+          <select id="rpt-priority">
+            <option value="보통">보통</option>
+            <option value="높음">높음</option>
+            <option value="낮음">낮음</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>반복 주기 <span class="required">*</span></label>
+          <select id="rpt-interval">
+            <option value="1">매월 (1개월)</option>
+            <option value="2">2개월마다</option>
+            <option value="3" selected>3개월마다</option>
+            <option value="6">6개월마다 (반기)</option>
+            <option value="12">12개월마다 (연간)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>다음 생성 월 <span class="required">*</span></label>
+        <input type="month" id="rpt-next-date" style="width:100%;padding:8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;font-family:inherit;outline:none;">
+        <small style="color:#6a7480;font-size:11px;margin-top:4px;display:block;">해당 월이 되면 담당자의 개인 현황에 자동으로 업무가 생성됩니다.</small>
+      </div>
+      <div class="form-group">
+        <label>📋 하위 업무 <small style="font-weight:400;color:#6a7480;">(반복 생성 시 함께 포함됩니다)</small></label>
+        <div class="subtask-section">
+          <div id="rpt-subtask-list"></div>
+          <button type="button" class="btn-add-sub" onclick="addRptSubtaskField()">＋ 하위 업무 추가</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>비고 / 메모</label>
+        <textarea id="rpt-note" placeholder="반복 업무에 대한 설명이나 주의사항을 입력하세요" style="min-height:70px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('repeat-modal')">취소</button>
+      <button class="btn btn-primary" onclick="saveRepeatTask()">💾 저장</button>
     </div>
   </div>
 </div>
@@ -1543,6 +1702,33 @@
       <div class="form-group">
         <label>비고 / 메모</label>
         <textarea id="f-note" placeholder="업무 관련 메모나 주의사항을 입력하세요"></textarea>
+      </div>
+      <!-- 반복 설정 -->
+      <div class="repeat-section">
+        <div class="repeat-section-title">🔁 반복 설정 <small style="font-weight:400;color:#6a7480;">(선택)</small></div>
+        <div class="repeat-enable-row">
+          <input type="checkbox" id="f-repeat-enable" style="width:15px;height:15px;" onchange="toggleRepeatSection(this.checked)">
+          <label for="f-repeat-enable">이 업무를 반복 업무로 설정</label>
+        </div>
+        <div id="f-repeat-detail" style="display:none;">
+          <div class="repeat-row" style="gap:14px;flex-wrap:wrap;">
+            <div>
+              <label>반복 주기</label><br>
+              <select id="f-repeat-interval" style="margin-top:4px;">
+                <option value="1">매월 (1개월)</option>
+                <option value="2">2개월마다</option>
+                <option value="3" selected>3개월마다</option>
+                <option value="6">6개월마다 (반기)</option>
+                <option value="12">12개월마다 (연간)</option>
+              </select>
+            </div>
+            <div>
+              <label>다음 생성 월</label><br>
+              <input type="month" id="f-repeat-next" style="margin-top:4px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
+            </div>
+          </div>
+          <small style="color:#4c6f98;font-size:11px;margin-top:8px;display:block;">💡 반복 업무로 설정하면 '반복 업무' 메뉴에서 관리됩니다.</small>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1651,7 +1837,7 @@ let memberSyncTimes    = load('hrm_member_sync_times', {}); // 직원별 마지�
 function save(key, val, hintMemberId) {
   localStorage.setItem(key, JSON.stringify(val));
   if (_driveLoading || key === 'hrm_drive_config' || !driveConfig.enabled || !driveConfig.url) return;
-  const SHARED_KEYS = ['hrm_members','hrm_categories','hrm_handovers','hrm_templates','hrm_trash'];
+  const SHARED_KEYS = ['hrm_members','hrm_categories','hrm_handovers','hrm_templates','hrm_trash','hrm_repeat_tasks'];
   if (SHARED_KEYS.includes(key)) {
     // 공유 데이터 → shared.json 자동저장
     clearTimeout(_sharedSaveTimer);
@@ -1672,6 +1858,7 @@ let categories = load('hrm_categories', DEFAULT_CATEGORIES);
 let tasks = load('hrm_tasks', []);
 let handovers = load('hrm_handovers', []);
 let templates = load('hrm_templates', []);
+let repeatTasks = load('hrm_repeat_tasks', []);
 let tplSearch = '';
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
@@ -1697,6 +1884,7 @@ const pageTitles = {
   dashboard: '🏠 대시보드',
   personal:  '👤 개인별 현황',
   done:      '✅ 완료 업무',
+  repeat:    '🔁 반복 업무',
   templates: '📋 템플릿',
   tasks:     '📝 업무 목록',
   calendar:  '📅 업무 캘린더',
@@ -1714,6 +1902,7 @@ function showPage(name) {
   if (name === 'tasks') { populateFilters(); renderTasks(); }
   if (name === 'personal') renderPersonal();
   if (name === 'done') renderDone();
+  if (name === 'repeat') renderRepeat();
   if (name === 'templates') renderTemplates();
   if (name === 'calendar') renderCalendar();
   if (name === 'handover') renderHandover();
@@ -1893,6 +2082,7 @@ function makeStickyCard(t, opts) {
   const progColor = prog >= 100 ? '#52a07a' : prog >= 50 ? '#7aabda' : '#d4924a';
   const catTag = t.category ? `<span class="s-tag s-tag-cat">${t.category}</span>` : '';
   const noteMark = t.note ? `<span title="${t.note}" style="font-size:11px;cursor:help;">📝</span>` : '';
+  const repeatMark = t.repeatSourceId ? `<span title="반복 업무" style="font-size:11px;cursor:pointer;" onclick="showPage('repeat')">🔁</span>` : '';
 
   // 하위 업무 영역
   let subHtml = '';
@@ -1968,6 +2158,7 @@ function makeStickyCard(t, opts) {
         <span class="badge badge-${t.priority}" style="font-size:10px;">${t.priority}</span>
         ${catTag}
         ${noteMark}
+        ${repeatMark}
       </div>
       ${t.due ? `<div class="s-due ${dueClass}">${dueLabel}</div>` : ''}
       <div class="s-progress">
@@ -2103,7 +2294,12 @@ function quickStatusKanban(id, st) {
   const t = tasks.find(x => x.id === id);
   if (!t) return;
   t.status = st;
-  if (st === '완료') { t.progress = 100; t.updatedAt = new Date().toISOString(); }
+  if (st === '완료') {
+    t.progress = 100;
+    t.updatedAt = new Date().toISOString();
+    if (!t.completedAt) t.completedAt = t.updatedAt;
+    if (t.repeatSourceId) updateRepeatHistory(t.repeatSourceId, t.id, t.completedAt);
+  }
   saveTasks(t.member); renderKanban();
   // 통계 갱신
   document.getElementById('stat-inprogress').textContent = tasks.filter(t => t.status === '진행중').length;
@@ -2456,6 +2652,7 @@ function quickStatus(id, st) {
   if (st === '완료') {
     t.progress = 100;
     if (!t.completedAt) t.completedAt = t.updatedAt;
+    if (t.repeatSourceId) updateRepeatHistory(t.repeatSourceId, t.id, t.completedAt);
   } else if (prev === '완료') {
     // 완료 → 다른 상태로 복원 시 completedAt 유지 (이력 보존)
   }
@@ -2511,6 +2708,12 @@ function openTaskModal() {
   document.getElementById('f-note').value = '';
   document.getElementById('subtask-list').innerHTML = '';
   updateSubtaskProgress();
+  // 반복 설정 초기화
+  document.getElementById('f-repeat-enable').checked = false;
+  document.getElementById('f-repeat-detail').style.display = 'none';
+  document.getElementById('f-repeat-interval').value = '3';
+  const nextM = new Date(); nextM.setMonth(nextM.getMonth() + 3);
+  document.getElementById('f-repeat-next').value = nextM.getFullYear() + '-' + String(nextM.getMonth()+1).padStart(2,'0');
   document.getElementById('modal-title').textContent = '업무 추가';
   document.getElementById('task-modal').classList.add('active');
 }
@@ -2536,6 +2739,22 @@ function editTask(id) {
     document.getElementById('progress-label').textContent = t.progress || 0;
   }
   updateSubtaskProgress();
+  // 반복 설정 로드
+  const rptSrc = t.repeatSourceId ? repeatTasks.find(r => r.id === t.repeatSourceId) : null;
+  const repeatEnableEl = document.getElementById('f-repeat-enable');
+  const repeatDetailEl = document.getElementById('f-repeat-detail');
+  if (rptSrc) {
+    repeatEnableEl.checked = true;
+    repeatDetailEl.style.display = '';
+    document.getElementById('f-repeat-interval').value = String(rptSrc.interval || 3);
+    document.getElementById('f-repeat-next').value = rptSrc.nextDate || '';
+  } else {
+    repeatEnableEl.checked = false;
+    repeatDetailEl.style.display = 'none';
+    document.getElementById('f-repeat-interval').value = '3';
+    const nm = new Date(); nm.setMonth(nm.getMonth() + 3);
+    document.getElementById('f-repeat-next').value = nm.getFullYear() + '-' + String(nm.getMonth()+1).padStart(2,'0');
+  }
   document.getElementById('modal-title').textContent = '업무 수정';
   document.getElementById('task-modal').classList.add('active');
 }
@@ -2575,6 +2794,11 @@ function saveTask() {
     note: document.getElementById('f-note').value.trim(),
     subtasks,
   };
+  // 반복 설정 처리
+  const repeatEnable = document.getElementById('f-repeat-enable').checked;
+  const repeatInterval = parseInt(document.getElementById('f-repeat-interval').value) || 3;
+  const repeatNextDate = document.getElementById('f-repeat-next').value; // YYYY-MM
+
   if (id) {
     const idx = tasks.findIndex(t => t.id === id);
     if (idx >= 0) {
@@ -2582,11 +2806,37 @@ function saveTask() {
       const prev = tasks[idx];
       const completedAt = (data.status === '완료' && !prev.completedAt) ? now : prev.completedAt;
       tasks[idx] = { ...prev, ...data, updatedAt: now, completedAt };
+      // 반복 업무 완료 처리
+      if (data.status === '완료' && prev.repeatSourceId) {
+        updateRepeatHistory(prev.repeatSourceId, id, completedAt || now);
+      }
     }
   } else {
     const now = new Date().toISOString();
     const completedAt = data.status === '완료' ? now : undefined;
-    tasks.push({ id: uid(), ...data, createdAt: now, updatedAt: now, completedAt });
+    const newTaskId = uid();
+    tasks.push({ id: newTaskId, ...data, createdAt: now, updatedAt: now, completedAt });
+
+    // 새 업무에 반복 설정이 있으면 repeatTask 생성
+    if (repeatEnable && repeatNextDate) {
+      const rpt = {
+        id: uid(),
+        title: data.name,
+        category: data.category || '',
+        priority: data.priority || '보통',
+        note: data.note || '',
+        subtasks: (data.subtasks || []).map(s => ({ id: uid(), name: s.name })),
+        assignedTo: data.member,
+        interval: repeatInterval,
+        nextDate: repeatNextDate,
+        active: true,
+        createdAt: now,
+        history: [{ taskId: newTaskId, createdAt: now, completedAt: null }]
+      };
+      tasks[tasks.length - 1].repeatSourceId = rpt.id;
+      repeatTasks.push(rpt);
+      save('hrm_repeat_tasks', repeatTasks);
+    }
   }
   saveTasks(data.member);
   closeModal('task-modal');
@@ -2594,6 +2844,7 @@ function saveTask() {
   if (document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
   else if (document.getElementById('page-tasks').classList.contains('active')) renderTasks();
   else if (document.getElementById('page-personal').classList.contains('active')) renderPersonal();
+  else if (document.getElementById('page-repeat').classList.contains('active')) renderRepeat();
 }
 
 function deleteTask(id) {
@@ -3638,6 +3889,15 @@ function openTemplateModal(id) {
     tpl.subtasks.forEach(s => addTplSubtaskField(s.name));
   }
 
+  // 반복 설정 초기화
+  document.getElementById('tpl-repeat-enable').checked = false;
+  document.getElementById('tpl-repeat-detail').style.display = 'none';
+  const tplRptMemberSel = document.getElementById('tpl-repeat-member');
+  tplRptMemberSel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  document.getElementById('tpl-repeat-interval').value = '3';
+  const nm = new Date(); nm.setMonth(nm.getMonth() + 1);
+  document.getElementById('tpl-repeat-next').value = nm.getFullYear() + '-' + String(nm.getMonth()+1).padStart(2,'0');
+
   document.getElementById('tpl-modal').classList.add('active');
 }
 
@@ -3730,6 +3990,29 @@ function saveTpl() {
     templates.push({ id: 'tpl' + Date.now(), ...data, usedCount: 0, createdAt: today() });
   }
   save('hrm_templates', templates);
+
+  // 템플릿 반복 설정 처리
+  const tplRepeatEnable = document.getElementById('tpl-repeat-enable').checked;
+  if (tplRepeatEnable) {
+    const tplRepeatMember = document.getElementById('tpl-repeat-member').value;
+    const tplRepeatInterval = parseInt(document.getElementById('tpl-repeat-interval').value) || 3;
+    const tplRepeatNext = document.getElementById('tpl-repeat-next').value;
+    if (tplRepeatMember && tplRepeatNext) {
+      repeatTasks.push({
+        id: uid(), title: name, assignedTo: tplRepeatMember,
+        category: data.category || '', priority: data.priority || '보통',
+        interval: tplRepeatInterval, nextDate: tplRepeatNext,
+        note: data.note || '',
+        subtasks: subtasks.map(s => ({ id: uid(), name: s.name })),
+        active: true, createdAt: new Date().toISOString(), history: []
+      });
+      save('hrm_repeat_tasks', repeatTasks);
+    }
+  }
+  // 반복 설정 초기화
+  document.getElementById('tpl-repeat-enable').checked = false;
+  document.getElementById('tpl-repeat-detail').style.display = 'none';
+
   closeModal('tpl-modal');
   renderTemplates();
 }
@@ -4189,6 +4472,7 @@ async function syncFromDrive() {
     if (data.memos)         { memos         = data.memos;         save('hrm_memos',         memos); }
     if (data.trash)         { trash         = data.trash;         save('hrm_trash',         trash); }
     if (data.personalOrder) { personalOrder = data.personalOrder; save('hrm_personal_order', personalOrder); }
+    if (data.repeatTasks)   { repeatTasks   = data.repeatTasks;   save('hrm_repeat_tasks',  repeatTasks); }
     // 직원별 마지막 저장 시각 수신
     if (data.memberSavedAt) {
       memberSyncTimes = { ...memberSyncTimes, ...data.memberSavedAt };
@@ -4271,7 +4555,7 @@ async function pushSharedData(silent) {
   if (!driveConfig.url) return;
   const payload = {
     action: 'saveShared',
-    data: { members, categories, handovers, templates, trash, savedAt: new Date().toISOString() }
+    data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
   };
   try {
     const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
@@ -4324,7 +4608,7 @@ function syncToDrive(silent) { return _drivePush(silent); }
 //  내보내기 / 가져오기
 // ══════════════════════════════════════════
 function exportData() {
-  const data = { version: 1, exportedAt: new Date().toISOString(), members, categories, tasks, handovers, templates, memos, trash, personalOrder };
+  const data = { version: 1, exportedAt: new Date().toISOString(), members, categories, tasks, handovers, templates, memos, trash, personalOrder, repeatTasks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -4359,6 +4643,11 @@ function importFile(f) {
           const existTplIds = new Set(templates.map(t => t.id));
           (data.templates || []).forEach(t => { if (!existTplIds.has(t.id)) templates.push(t); });
         }
+      }
+      if (data.repeatTasks) {
+        if (mode === 'replace') { repeatTasks = data.repeatTasks; }
+        else { const existRIds = new Set(repeatTasks.map(r => r.id)); (data.repeatTasks || []).forEach(r => { if (!existRIds.has(r.id)) repeatTasks.push(r); }); }
+        save('hrm_repeat_tasks', repeatTasks);
       }
       saveTasks(); save('hrm_handovers', handovers); save('hrm_members', members);
       save('hrm_categories', categories); save('hrm_templates', templates);
@@ -4401,6 +4690,287 @@ function clearAllData() {
   tasks = []; handovers = []; members = [...DEFAULT_MEMBERS]; categories = [...DEFAULT_CATEGORIES];
   localStorage.clear(); alert('초기화 완료.');
   renderDashboard();
+}
+
+// ══════════════════════════════════════════
+//  반복 업무
+// ══════════════════════════════════════════
+
+// YYYY-MM 형식의 현재 연월 반환
+function currentYM() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// 연월 문자열에 N개월 더하기
+function addMonths(ym, n) {
+  if (!ym) return '';
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// 반복 업무 자동 생성 (앱 시작 시 + syncFromDrive 후 호출)
+function checkAndCreateRepeatTasks() {
+  const now = new Date().toISOString();
+  const thisYM = currentYM();
+  let changed = false;
+  repeatTasks.forEach(rpt => {
+    if (!rpt.active || !rpt.nextDate) return;
+    if (rpt.nextDate <= thisYM) {
+      // 이미 이번 달에 생성된 인스턴스가 있으면 중복 생성 방지
+      const alreadyCreated = (rpt.history || []).some(h => h.createdAt && h.createdAt.slice(0,7) === rpt.nextDate);
+      if (!alreadyCreated) {
+        const newTaskId = uid();
+        const newTask = {
+          id: newTaskId,
+          name: rpt.title,
+          member: rpt.assignedTo,
+          category: rpt.category || '',
+          priority: rpt.priority || '보통',
+          status: '대기',
+          start: rpt.nextDate + '-01',
+          due: '',
+          progress: 0,
+          note: rpt.note || '',
+          subtasks: (rpt.subtasks || []).map(s => ({ id: uid(), name: s.name, done: false, doneAt: null })),
+          repeatSourceId: rpt.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        tasks.push(newTask);
+        if (!rpt.history) rpt.history = [];
+        rpt.history.push({ taskId: newTaskId, createdAt: now, completedAt: null });
+        changed = true;
+      }
+      // 다음 생성 월 업데이트
+      rpt.nextDate = addMonths(rpt.nextDate, rpt.interval || 1);
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveTasks();
+    save('hrm_repeat_tasks', repeatTasks);
+  }
+}
+
+// 업무 완료 시 반복 이력 업데이트
+function updateRepeatHistory(repeatId, taskId, completedAt) {
+  const rpt = repeatTasks.find(r => r.id === repeatId);
+  if (!rpt) return;
+  const entry = (rpt.history || []).find(h => h.taskId === taskId);
+  if (entry) {
+    entry.completedAt = completedAt || new Date().toISOString();
+    save('hrm_repeat_tasks', repeatTasks);
+  }
+}
+
+// 반복 업무 페이지 렌더링
+function renderRepeat() {
+  const grid = document.getElementById('repeat-grid');
+  const empty = document.getElementById('repeat-empty');
+  if (!repeatTasks.length) {
+    grid.innerHTML = ''; empty.style.display = ''; return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = repeatTasks.map(rpt => {
+    const member = members.find(m => m.id === rpt.assignedTo);
+    const memberName = member ? member.name : '(미지정)';
+    const intervalLabel = {1:'매월',2:'2개월마다',3:'3개월마다',6:'6개월마다',12:'매년'}[rpt.interval] || rpt.interval + '개월마다';
+    const histRows = (rpt.history || []).slice(-5).reverse().map(h => {
+      const t = tasks.find(x => x.id === h.taskId);
+      const tName = t ? t.name : rpt.title;
+      const crDate = h.createdAt ? h.createdAt.slice(0,10) : '';
+      if (h.completedAt) {
+        return `<div class="repeat-history-row done">✅ ${crDate} 생성 → ${h.completedAt.slice(0,10)} 완료</div>`;
+      } else {
+        const st = t ? t.status : '?';
+        return `<div class="repeat-history-row pending">⏳ ${crDate} 생성 (${st})</div>`;
+      }
+    }).join('');
+    return `
+    <div class="repeat-card${rpt.active ? '' : ' inactive'}">
+      <div class="repeat-card-header">
+        <div class="repeat-card-title">${rpt.title}</div>
+        <span class="repeat-badge${rpt.active ? '' : ' inactive'}">${rpt.active ? '활성' : '비활성'}</span>
+      </div>
+      <div class="repeat-card-meta">
+        <span>👤 ${memberName}</span>
+        <span>🔁 ${intervalLabel}</span>
+        <span>📅 다음 생성: ${rpt.nextDate || '미설정'}</span>
+        ${rpt.category ? `<span>📂 ${rpt.category}</span>` : ''}
+        ${rpt.note ? `<span style="color:#6a7480;font-style:italic;">📝 ${rpt.note.slice(0,40)}${rpt.note.length>40?'…':''}</span>` : ''}
+      </div>
+      ${histRows ? `<div class="repeat-history"><div class="repeat-history-title">최근 이력</div>${histRows}</div>` : ''}
+      <div class="repeat-card-actions">
+        <button class="btn btn-outline btn-sm" onclick="editRepeatTask('${rpt.id}')">✏️ 수정</button>
+        <button class="btn btn-outline btn-sm" onclick="manualCreateRepeatTask('${rpt.id}')" title="지금 즉시 업무 생성">▶ 즉시 생성</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleRepeatActive('${rpt.id}')">${rpt.active ? '⏸ 일시중지' : '▶ 활성화'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteRepeatTask('${rpt.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 반복 업무 모달 열기 (신규)
+function openRepeatModal() {
+  populateFilters();
+  document.getElementById('repeat-edit-id').value = '';
+  document.getElementById('rpt-name').value = '';
+  document.getElementById('rpt-priority').value = '보통';
+  document.getElementById('rpt-interval').value = '3';
+  document.getElementById('rpt-note').value = '';
+  document.getElementById('rpt-subtask-list').innerHTML = '';
+  // 담당자 select 채우기
+  const sel = document.getElementById('rpt-member');
+  sel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  // 카테고리 select 채우기
+  const catSel = document.getElementById('rpt-category');
+  catSel.innerHTML = '<option value="">카테고리 없음</option>' + categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  // 다음 생성 월 기본값: 다음 달
+  const nm = new Date(); nm.setMonth(nm.getMonth() + 1);
+  document.getElementById('rpt-next-date').value = nm.getFullYear() + '-' + String(nm.getMonth()+1).padStart(2,'0');
+  document.getElementById('repeat-modal-title').textContent = '🔁 반복 업무 추가';
+  document.getElementById('repeat-modal').classList.add('active');
+}
+
+// 반복 업무 편집 모달
+function editRepeatTask(id) {
+  const rpt = repeatTasks.find(r => r.id === id);
+  if (!rpt) return;
+  populateFilters();
+  const sel = document.getElementById('rpt-member');
+  sel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  const catSel = document.getElementById('rpt-category');
+  catSel.innerHTML = '<option value="">카테고리 없음</option>' + categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  document.getElementById('repeat-edit-id').value = rpt.id;
+  document.getElementById('rpt-name').value = rpt.title;
+  sel.value = rpt.assignedTo;
+  catSel.value = rpt.category || '';
+  document.getElementById('rpt-priority').value = rpt.priority || '보통';
+  document.getElementById('rpt-interval').value = String(rpt.interval || 3);
+  document.getElementById('rpt-next-date').value = rpt.nextDate || '';
+  document.getElementById('rpt-note').value = rpt.note || '';
+  document.getElementById('rpt-subtask-list').innerHTML = '';
+  (rpt.subtasks || []).forEach(s => addRptSubtaskField(s.name));
+  document.getElementById('repeat-modal-title').textContent = '🔁 반복 업무 수정';
+  document.getElementById('repeat-modal').classList.add('active');
+}
+
+// 반복 업무 저장
+function saveRepeatTask() {
+  const title = document.getElementById('rpt-name').value.trim();
+  if (!title) { alert('업무명을 입력하세요.'); return; }
+  const assignedTo = document.getElementById('rpt-member').value;
+  if (!assignedTo) { alert('담당자를 선택하세요.'); return; }
+  const nextDate = document.getElementById('rpt-next-date').value;
+  if (!nextDate) { alert('다음 생성 월을 선택하세요.'); return; }
+  const id = document.getElementById('repeat-edit-id').value;
+  const now = new Date().toISOString();
+  const subtasks = [...document.getElementById('rpt-subtask-list').querySelectorAll('.sub-name-input')]
+    .map(inp => ({ id: uid(), name: inp.value.trim() }))
+    .filter(s => s.name);
+  if (id) {
+    const idx = repeatTasks.findIndex(r => r.id === id);
+    if (idx >= 0) {
+      repeatTasks[idx] = { ...repeatTasks[idx],
+        title, assignedTo, category: document.getElementById('rpt-category').value,
+        priority: document.getElementById('rpt-priority').value,
+        interval: parseInt(document.getElementById('rpt-interval').value),
+        nextDate, note: document.getElementById('rpt-note').value.trim(),
+        subtasks, updatedAt: now
+      };
+    }
+  } else {
+    repeatTasks.push({
+      id: uid(), title, assignedTo,
+      category: document.getElementById('rpt-category').value,
+      priority: document.getElementById('rpt-priority').value,
+      interval: parseInt(document.getElementById('rpt-interval').value),
+      nextDate, note: document.getElementById('rpt-note').value.trim(),
+      subtasks, active: true, createdAt: now, history: []
+    });
+  }
+  save('hrm_repeat_tasks', repeatTasks);
+  closeModal('repeat-modal');
+  renderRepeat();
+}
+
+// 반복 업무 삭제
+function deleteRepeatTask(id) {
+  if (!confirm('이 반복 설정을 삭제하시겠습니까?\n기존에 생성된 업무는 유지됩니다.')) return;
+  repeatTasks = repeatTasks.filter(r => r.id !== id);
+  save('hrm_repeat_tasks', repeatTasks);
+  renderRepeat();
+}
+
+// 반복 업무 활성/비활성 토글
+function toggleRepeatActive(id) {
+  const rpt = repeatTasks.find(r => r.id === id);
+  if (!rpt) return;
+  rpt.active = !rpt.active;
+  save('hrm_repeat_tasks', repeatTasks);
+  renderRepeat();
+}
+
+// 수동 즉시 생성
+function manualCreateRepeatTask(id) {
+  const rpt = repeatTasks.find(r => r.id === id);
+  if (!rpt) return;
+  if (!confirm(`"${rpt.title}" 업무를 지금 즉시 생성하시겠습니까?`)) return;
+  const now = new Date().toISOString();
+  const newTaskId = uid();
+  const newTask = {
+    id: newTaskId, name: rpt.title, member: rpt.assignedTo,
+    category: rpt.category || '', priority: rpt.priority || '보통',
+    status: '대기', start: today(), due: '', progress: 0,
+    note: rpt.note || '',
+    subtasks: (rpt.subtasks || []).map(s => ({ id: uid(), name: s.name, done: false, doneAt: null })),
+    repeatSourceId: rpt.id, createdAt: now, updatedAt: now,
+  };
+  tasks.push(newTask);
+  if (!rpt.history) rpt.history = [];
+  rpt.history.push({ taskId: newTaskId, createdAt: now, completedAt: null });
+  saveTasks(rpt.assignedTo);
+  save('hrm_repeat_tasks', repeatTasks);
+  alert(`업무가 생성되었습니다. 개인별 현황에서 확인하세요.`);
+  renderRepeat();
+}
+
+// 반복 업무 하위 업무 필드 추가 (반복 모달용)
+function addRptSubtaskField(name) {
+  const list = document.getElementById('rpt-subtask-list');
+  const div = document.createElement('div');
+  div.className = 'subtask-item';
+  div.innerHTML = `<input type="text" class="sub-name-input" placeholder="하위 업무명" value="${name || ''}">
+    <button type="button" class="sub-del-btn" onclick="this.parentElement.remove()">✕</button>`;
+  list.appendChild(div);
+}
+
+// 업무 모달 반복 섹션 토글
+function toggleRepeatSection(checked) {
+  document.getElementById('f-repeat-detail').style.display = checked ? '' : 'none';
+  if (checked) {
+    const nm = new Date(); nm.setMonth(nm.getMonth() + parseInt(document.getElementById('f-repeat-interval').value || 3));
+    const cur = document.getElementById('f-repeat-next').value;
+    if (!cur) document.getElementById('f-repeat-next').value = nm.getFullYear() + '-' + String(nm.getMonth()+1).padStart(2,'0');
+  }
+}
+
+// 템플릿 모달 반복 섹션 토글
+function toggleTplRepeatSection(checked) {
+  const detail = document.getElementById('tpl-repeat-detail');
+  detail.style.display = checked ? '' : 'none';
+  if (checked) {
+    // 담당자 select 채우기
+    const sel = document.getElementById('tpl-repeat-member');
+    if (sel && !sel.options.length) {
+      sel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    }
+    const nm = new Date(); nm.setMonth(nm.getMonth() + 1);
+    const cur = document.getElementById('tpl-repeat-next').value;
+    if (!cur) document.getElementById('tpl-repeat-next').value = nm.getFullYear() + '-' + String(nm.getMonth()+1).padStart(2,'0');
+  }
 }
 
 // ══════════════════════════════════════════
@@ -4493,9 +5063,10 @@ populateFilters();
 })();
 showPage('personal');
 updateTrashBadge();
+checkAndCreateRepeatTasks();
 // 앱 시작 시 드라이브 연동이 설정되어 있으면 자동으로 불러오기
 if (driveConfig.enabled && driveConfig.url) {
-  syncFromDrive().catch(() => {});
+  syncFromDrive().then(() => checkAndCreateRepeatTasks()).catch(() => {});
 }
 </script>
 </body>
