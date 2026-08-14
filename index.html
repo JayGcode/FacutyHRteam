@@ -2480,7 +2480,7 @@ function addSubtaskField(name='', done=false, sid=null) {
   row.addEventListener('dragend', () => {
     document.body.classList.remove('sub-modal-dragging');
     row.classList.remove('sub-dragging');
-    document.querySelectorAll('.subtask-input-row').forEach(r => {
+    list.querySelectorAll('.subtask-input-row').forEach(r => {
       r.classList.remove('sub-drag-over-top', 'sub-drag-over-bottom');
     });
     subDragId = null;
@@ -2488,7 +2488,7 @@ function addSubtaskField(name='', done=false, sid=null) {
   row.addEventListener('dragover', e => {
     e.preventDefault();
     if (!subDragId || subDragId === id) return;
-    document.querySelectorAll('.subtask-input-row').forEach(r => {
+    list.querySelectorAll('.subtask-input-row').forEach(r => {
       r.classList.remove('sub-drag-over-top', 'sub-drag-over-bottom');
     });
     const rect = row.getBoundingClientRect();
@@ -2533,7 +2533,8 @@ function onSubCbChange(cb) {
 }
 
 function updateSubtaskProgress() {
-  const rows = [...document.querySelectorAll('.subtask-input-row')];
+  const list = document.getElementById('subtask-list');
+  const rows = list ? [...list.querySelectorAll('.subtask-input-row')] : [];
   const progressWrap = document.getElementById('f-progress-wrap');
   const countLabel = document.getElementById('subtask-count-label');
   const progressInfo = document.getElementById('subtask-progress-info');
@@ -2545,7 +2546,7 @@ function updateSubtaskProgress() {
   }
   progressWrap.style.display = 'none';
   const total = rows.length;
-  const done = rows.filter(r => r.querySelector('.sub-done-cb').checked).length;
+  const done = rows.filter(r => r.querySelector('.sub-done-cb')?.checked).length;
   const pct = Math.round(done / total * 100);
   document.getElementById('f-progress').value = pct;
   document.getElementById('progress-label').textContent = pct;
@@ -2554,11 +2555,12 @@ function updateSubtaskProgress() {
 }
 
 function getSubtasksFromModal() {
-  return [...document.querySelectorAll('.subtask-input-row')].map(r => ({
+  const list = document.getElementById('subtask-list');
+  return list ? [...list.querySelectorAll('.subtask-input-row')].map(r => ({
     id: r.dataset.sid,
     name: r.querySelector('.sub-name-input').value.trim(),
-    done: r.querySelector('.sub-done-cb').checked
-  })).filter(s => s.name);
+    done: r.querySelector('.sub-done-cb')?.checked ?? false
+  })).filter(s => s.name) : [];
 }
 
 function toggleSubtask(taskId, subId, done) {
