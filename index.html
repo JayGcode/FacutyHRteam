@@ -670,7 +670,7 @@
   .subtask-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .subtask-section-header span { font-size:12px; font-weight:700; color:var(--primary); }
   .subtask-progress-info { font-size:11px; color:#6a7480; display:flex; align-items:center; gap:6px; }
-  .subtask-input-row { display:flex !important; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #eef0f8; }
+  .subtask-input-row { display:flex !important; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #eef0f8; width:100%; box-sizing:border-box; }
   .subtask-input-row:last-child { border-bottom:none; }
   .sub-done-cb { width:16px !important; height:16px !important; min-width:16px; cursor:pointer; accent-color:var(--primary); flex-shrink:0; padding:0 !important; border:none !important; }
   /* width:100% / padding 등 .form-group input 전역 스타일을 !important로 차단 */
@@ -5097,26 +5097,37 @@ function addRptSubtaskField(name) {
   const row  = document.createElement('div');
   row.className = 'subtask-input-row';
   row.dataset.rsid = id;
-  row.draggable = true;
+  row.draggable = false;  // handle mousedown 시에만 활성화
 
+  // ① 드래그 핸들 — 여기서 mousedown 해야만 드래그 가능
   const handle = document.createElement('span');
   handle.className = 'sub-drag-handle';
   handle.textContent = '⠿';
   handle.title = '드래그하여 순서 변경';
+  handle.addEventListener('mousedown', () => {
+    row.draggable = true;
+    // drag 종료(또는 취소) 후 draggable 원상복구
+    document.addEventListener('mouseup', () => { row.draggable = false; }, { once: true });
+  });
 
+  // ② 텍스트 입력
   const inp = document.createElement('input');
   inp.type = 'text';
   inp.className = 'sub-name-input';
   inp.value = name || '';
   inp.placeholder = '하위 업무명을 입력하세요';
+  inp.draggable = false;
+  inp.addEventListener('dragstart', e => e.stopPropagation()); // 텍스트 드래그 차단
 
+  // ③ 삭제 버튼
   const del = document.createElement('button');
   del.type = 'button';
   del.className = 'sub-del-btn';
   del.textContent = '삭제';
+  del.draggable = false;
   del.addEventListener('click', () => row.remove());
 
-  // 드래그 이벤트
+  // ④ 드래그 이벤트 (row 단위)
   row.addEventListener('dragstart', e => {
     rptSubDragId = id;
     e.dataTransfer.effectAllowed = 'move';
@@ -5129,6 +5140,7 @@ function addRptSubtaskField(name) {
     list.querySelectorAll('.subtask-input-row').forEach(r =>
       r.classList.remove('sub-drag-over-top', 'sub-drag-over-bottom'));
     rptSubDragId = null;
+    row.draggable = false;
   });
   row.addEventListener('dragover', e => {
     e.preventDefault();
@@ -5148,8 +5160,8 @@ function addRptSubtaskField(name) {
     if (!rptSubDragId || rptSubDragId === id) return;
     const dragged = list.querySelector(`[data-rsid="${rptSubDragId}"]`);
     if (!dragged || dragged === row) return;
-    const after = e.clientY >= row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
-    list.insertBefore(dragged, after ? row.nextSibling : row);
+    const rect = row.getBoundingClientRect();
+    list.insertBefore(dragged, e.clientY >= rect.top + rect.height / 2 ? row.nextSibling : row);
     rptSubDragId = null;
   });
 
