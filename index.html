@@ -2082,6 +2082,7 @@ let kDragOverPos = 'top';           // 칸반 드래그 오버 위치 ('top'|'bo
 let tsdDragIdx   = null;            // 템플릿 하위업무 드래그 중인 인덱스
 let tsdOverIdx   = null;            // 템플릿 하위업무 드래그 오버 인덱스
 let tsdOverPos   = 'top';           // 'top'|'bottom'
+let rptSubDragId = null;            // 반복 업무 모달 하위업무 드래그 중인 항목 ID
 let statAcadYear = 0;               // 업무 처리 현황 집계 학년도 (0=초기화 대기)
 
 function setKanbanView(mode) {
@@ -3948,6 +3949,7 @@ function renderTemplates() {
           ? `<span class="tpl-meta-badge">${tpl.category}</span>`
           : ''}
         <span class="tpl-meta-badge" style="background:${priorityBg};color:${priorityColor};">${tpl.priority || '보통'}</span>
+        ${tpl.repeatTaskId ? `<span class="tpl-meta-badge" style="background:#edf4ff;color:#4c6f98;">🔁 반복</span>` : ''}
         <span style="font-size:11px;color:#9eaab6;">${(tpl.subtasks||[]).length}개 하위업무</span>
       </div>
       ${tpl.note ? `<div class="tpl-card-note">${tpl.note}</div>` : ''}
@@ -3983,14 +3985,23 @@ function openTemplateModal(id) {
     tpl.subtasks.forEach(s => addTplSubtaskField(s.name));
   }
 
-  // 반복 설정 초기화
-  document.getElementById('tpl-repeat-enable').checked = false;
-  document.getElementById('tpl-repeat-detail').style.display = 'none';
+  // 반복 설정 — 기존 연결된 반복 업무가 있으면 불러오기, 없으면 초기화
   const tplRptMemberSel = document.getElementById('tpl-repeat-member');
   tplRptMemberSel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
-  document.getElementById('tpl-repeat-interval').value = '3';
-  const nm = new Date(); nm.setMonth(nm.getMonth() + 1);
-  document.getElementById('tpl-repeat-next').value = nm.getFullYear() + '-' + String(nm.getMonth()+1).padStart(2,'0');
+  const linkedRpt = tpl && tpl.repeatTaskId ? repeatTasks.find(r => r.id === tpl.repeatTaskId) : null;
+  if (linkedRpt) {
+    document.getElementById('tpl-repeat-enable').checked = true;
+    document.getElementById('tpl-repeat-detail').style.display = '';
+    tplRptMemberSel.value = linkedRpt.assignedTo;
+    document.getElementById('tpl-repeat-interval').value = String(linkedRpt.interval || 3);
+    document.getElementById('tpl-repeat-next').value = linkedRpt.nextDate || '';
+  } else {
+    document.getElementById('tpl-repeat-enable').checked = false;
+    document.getElementById('tpl-repeat-detail').style.display = 'none';
+    document.getElementById('tpl-repeat-interval').value = '3';
+    const nm2 = new Date(); nm2.setMonth(nm2.getMonth() + 1);
+    document.getElementById('tpl-repeat-next').value = nm2.getFullYear() + '-' + String(nm2.getMonth()+1).padStart(2,'0');
+  }
 
   document.getElementById('tpl-modal').classList.add('active');
 }
@@ -4087,22 +4098,52 @@ function saveTpl() {
 
   // 템플릿 반복 설정 처리
   const tplRepeatEnable = document.getElementById('tpl-repeat-enable').checked;
+  const curTplIdx = id ? templates.findIndex(t => t.id === id) : templates.length - 1;
+  const curTpl    = templates[curTplIdx];
+  const prevRptId = curTpl ? (curTpl.repeatTaskId || null) : null;
+
   if (tplRepeatEnable) {
-    const tplRepeatMember = document.getElementById('tpl-repeat-member').value;
+    const tplRepeatMember   = document.getElementById('tpl-repeat-member').value;
     const tplRepeatInterval = parseInt(document.getElementById('tpl-repeat-interval').value) || 3;
-    const tplRepeatNext = document.getElementById('tpl-repeat-next').value;
+    const tplRepeatNext     = document.getElementById('tpl-repeat-next').value;
     if (tplRepeatMember && tplRepeatNext) {
-      repeatTasks.push({
-        id: uid(), title: name, assignedTo: tplRepeatMember,
-        category: data.category || '', priority: data.priority || '보통',
-        interval: tplRepeatInterval, nextDate: tplRepeatNext,
-        note: data.note || '',
-        subtasks: subtasks.map(s => ({ id: uid(), name: s.name })),
-        active: true, createdAt: new Date().toISOString(), history: []
-      });
+      if (prevRptId) {
+        // 기존 반복 업무 수정
+        const rptIdx = repeatTasks.findIndex(r => r.id === prevRptId);
+        if (rptIdx >= 0) {
+          repeatTasks[rptIdx] = {
+            ...repeatTasks[rptIdx],
+            title: name, assignedTo: tplRepeatMember,
+            category: data.category || '', priority: data.priority || '보통',
+            interval: tplRepeatInterval, nextDate: tplRepeatNext,
+            note: data.note || '',
+            subtasks: subtasks.map(s => ({ id: uid(), name: s.name })),
+          };
+        }
+      } else {
+        // 새 반복 업무 생성 + 템플릿에 ID 연결
+        const newRptId = uid();
+        repeatTasks.push({
+          id: newRptId, title: name, assignedTo: tplRepeatMember,
+          category: data.category || '', priority: data.priority || '보통',
+          interval: tplRepeatInterval, nextDate: tplRepeatNext,
+          note: data.note || '',
+          subtasks: subtasks.map(s => ({ id: uid(), name: s.name })),
+          active: true, createdAt: new Date().toISOString(), history: []
+        });
+        if (curTpl) curTpl.repeatTaskId = newRptId;
+      }
       save('hrm_repeat_tasks', repeatTasks);
+      save('hrm_templates', templates);
     }
+  } else if (prevRptId) {
+    // 반복 설정 해제 → 연결된 반복 업무 삭제
+    repeatTasks = repeatTasks.filter(r => r.id !== prevRptId);
+    if (curTpl) delete curTpl.repeatTaskId;
+    save('hrm_repeat_tasks', repeatTasks);
+    save('hrm_templates', templates);
   }
+
   // 반복 설정 초기화
   document.getElementById('tpl-repeat-enable').checked = false;
   document.getElementById('tpl-repeat-detail').style.display = 'none';
@@ -5051,12 +5092,71 @@ function manualCreateRepeatTask(id) {
 
 // 반복 업무 하위 업무 필드 추가 (반복 모달용)
 function addRptSubtaskField(name) {
+  const id   = 'rs' + Date.now() + Math.random().toString(36).slice(2, 5);
   const list = document.getElementById('rpt-subtask-list');
-  const div = document.createElement('div');
-  div.className = 'subtask-item';
-  div.innerHTML = `<input type="text" class="sub-name-input" placeholder="하위 업무명" value="${name || ''}">
-    <button type="button" class="sub-del-btn" onclick="this.parentElement.remove()">✕</button>`;
-  list.appendChild(div);
+  const row  = document.createElement('div');
+  row.className = 'subtask-input-row';
+  row.dataset.rsid = id;
+  row.draggable = true;
+
+  const handle = document.createElement('span');
+  handle.className = 'sub-drag-handle';
+  handle.textContent = '⠿';
+  handle.title = '드래그하여 순서 변경';
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'sub-name-input';
+  inp.value = name || '';
+  inp.placeholder = '하위 업무명을 입력하세요';
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'sub-del-btn';
+  del.textContent = '삭제';
+  del.addEventListener('click', () => row.remove());
+
+  // 드래그 이벤트
+  row.addEventListener('dragstart', e => {
+    rptSubDragId = id;
+    e.dataTransfer.effectAllowed = 'move';
+    document.body.classList.add('sub-modal-dragging');
+    setTimeout(() => row.classList.add('sub-dragging'), 0);
+  });
+  row.addEventListener('dragend', () => {
+    document.body.classList.remove('sub-modal-dragging');
+    row.classList.remove('sub-dragging');
+    list.querySelectorAll('.subtask-input-row').forEach(r =>
+      r.classList.remove('sub-drag-over-top', 'sub-drag-over-bottom'));
+    rptSubDragId = null;
+  });
+  row.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!rptSubDragId || rptSubDragId === id) return;
+    list.querySelectorAll('.subtask-input-row').forEach(r =>
+      r.classList.remove('sub-drag-over-top', 'sub-drag-over-bottom'));
+    const rect = row.getBoundingClientRect();
+    row.classList.add(e.clientY < rect.top + rect.height / 2 ? 'sub-drag-over-top' : 'sub-drag-over-bottom');
+  });
+  row.addEventListener('dragleave', e => {
+    if (!row.contains(e.relatedTarget))
+      row.classList.remove('sub-drag-over-top', 'sub-drag-over-bottom');
+  });
+  row.addEventListener('drop', e => {
+    e.preventDefault();
+    row.classList.remove('sub-drag-over-top', 'sub-drag-over-bottom');
+    if (!rptSubDragId || rptSubDragId === id) return;
+    const dragged = list.querySelector(`[data-rsid="${rptSubDragId}"]`);
+    if (!dragged || dragged === row) return;
+    const after = e.clientY >= row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+    list.insertBefore(dragged, after ? row.nextSibling : row);
+    rptSubDragId = null;
+  });
+
+  row.appendChild(handle);
+  row.appendChild(inp);
+  row.appendChild(del);
+  list.appendChild(row);
 }
 
 // 업무 모달 반복 섹션 토글
