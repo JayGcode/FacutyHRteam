@@ -4932,12 +4932,13 @@ function openRepeatModal() {
   document.getElementById('rpt-interval').value = '3';
   document.getElementById('rpt-note').value = '';
   document.getElementById('rpt-subtask-list').innerHTML = '';
+  addRptSubtaskField('완료');
   // 담당자 select 채우기
   const sel = document.getElementById('rpt-member');
   sel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
   // 카테고리 select 채우기
   const catSel = document.getElementById('rpt-category');
-  catSel.innerHTML = '<option value="">카테고리 없음</option>' + categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  catSel.innerHTML = '<option value="">카테고리 없음</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
   // 다음 생성 월 기본값: 다음 달
   const nm = new Date(); nm.setMonth(nm.getMonth() + 1);
   document.getElementById('rpt-next-date').value = nm.getFullYear() + '-' + String(nm.getMonth()+1).padStart(2,'0');
@@ -4953,7 +4954,7 @@ function editRepeatTask(id) {
   const sel = document.getElementById('rpt-member');
   sel.innerHTML = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
   const catSel = document.getElementById('rpt-category');
-  catSel.innerHTML = '<option value="">카테고리 없음</option>' + categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  catSel.innerHTML = '<option value="">카테고리 없음</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
   document.getElementById('repeat-edit-id').value = rpt.id;
   document.getElementById('rpt-name').value = rpt.title;
   sel.value = rpt.assignedTo;
