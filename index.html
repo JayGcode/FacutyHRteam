@@ -2369,6 +2369,7 @@ function openTaskModalFor(memberId) {
   document.getElementById('progress-label').textContent = '0';
   document.getElementById('f-note').value = '';
   document.getElementById('subtask-list').innerHTML = '';
+  addSubtaskField('완료');
   updateSubtaskProgress();
   document.getElementById('modal-title').textContent = '업무 추가';
   document.getElementById('task-modal').classList.add('active');
@@ -2747,6 +2748,7 @@ function openTaskModal() {
   document.getElementById('progress-label').textContent = '0';
   document.getElementById('f-note').value = '';
   document.getElementById('subtask-list').innerHTML = '';
+  addSubtaskField('완료');
   updateSubtaskProgress();
   // 반복 설정 초기화
   document.getElementById('f-repeat-enable').checked = false;
