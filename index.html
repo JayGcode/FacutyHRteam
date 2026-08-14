@@ -31,7 +31,45 @@
     color: #fff;
     position: fixed; top: 0; left: 0; height: 100vh;
     display: flex; flex-direction: column; z-index: 100; box-shadow: 2px 0 10px rgba(0,0,0,.12);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
   }
+  #sidebar.sidebar-hidden {
+    transform: translateX(calc(-1 * var(--sidebar-w)));
+    box-shadow: none;
+  }
+  #main {
+    transition: margin-left .28s cubic-bezier(.4,0,.2,1);
+  }
+  body.sidebar-hidden #main {
+    margin-left: 0;
+  }
+  /* 사이드바 숨김 시 나타나는 복원 탭 */
+  #sidebar-tab {
+    position: fixed; top: 50%; left: 0;
+    transform: translateY(-50%) translateX(-100%);
+    background: linear-gradient(180deg, #4c6f98 0%, #3d5e85 100%);
+    color: #fff; border: none; border-radius: 0 8px 8px 0;
+    padding: 14px 6px; cursor: pointer; z-index: 99;
+    box-shadow: 2px 2px 8px rgba(0,0,0,.18);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10px; transition: transform .28s cubic-bezier(.4,0,.2,1), opacity .28s;
+    opacity: 0; pointer-events: none;
+  }
+  #sidebar-tab.visible {
+    transform: translateY(-50%) translateX(0);
+    opacity: 1; pointer-events: auto;
+  }
+  #sidebar-tab svg { width: 14px; height: 14px; fill: #fff; }
+  /* 데스크탑 전용 사이드바 토글 버튼 (탑바) */
+  #sidebar-toggle-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 6px;
+    background: none; border: none; cursor: pointer;
+    color: var(--gray-700); transition: background .15s;
+    flex-shrink: 0;
+  }
+  #sidebar-toggle-btn:hover { background: var(--gray-200); }
+  #sidebar-toggle-btn svg { width: 18px; height: 18px; }
   #sidebar .logo { padding: 20px 16px 14px; border-bottom: 1px solid rgba(255,255,255,.15); }
   #sidebar .logo h1 { font-size: 15px; font-weight: 700; line-height: 1.4; }
   #sidebar .logo small { font-size: 11px; opacity: .7; }
@@ -588,6 +626,8 @@
     .cal-grid { font-size: 11px; }
     .cal-day-header { font-size: 10px; padding: 4px 2px; }
     .cal-task { font-size: 9px; }
+    /* 데스크탑 전용 사이드바 토글: 모바일 숨김 */
+    #sidebar-toggle-btn, #sidebar-tab { display: none !important; }
   }
 
   /* ── 아주 작은 화면 (480px 이하) ── */
@@ -1012,12 +1052,21 @@
 <!-- 모바일 사이드바 오버레이 -->
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 
+<!-- 사이드바 숨김 시 나타나는 복원 탭 (데스크탑 전용) -->
+<button id="sidebar-tab" onclick="toggleSidebarDesktop()" aria-label="메뉴 열기">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 18l6-6-6-6" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+  <span>메뉴</span>
+</button>
+
 <!-- ───────────── 메인 ───────────── -->
 <div id="main">
   <div id="topbar">
     <div style="display:flex;align-items:center;gap:10px;">
       <button id="hamburger-btn" onclick="toggleSidebar()" aria-label="메뉴">
         <span></span><span></span><span></span>
+      </button>
+      <button id="sidebar-toggle-btn" onclick="toggleSidebarDesktop()" aria-label="사이드바 숨기기/보이기" title="사이드바 숨기기/보이기">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <h2 id="page-title">🏠 대시보드</h2>
     </div>
@@ -5240,6 +5289,16 @@ function closeSidebar() {
   document.body.style.position = '';
   document.body.style.width = '';
 }
+// 데스크탑 사이드바 숨기기/보이기 토글
+function toggleSidebarDesktop() {
+  if (window.innerWidth <= 768) return;
+  const sb = document.getElementById('sidebar');
+  const tab = document.getElementById('sidebar-tab');
+  const isNowHidden = sb.classList.toggle('sidebar-hidden');
+  document.body.classList.toggle('sidebar-hidden', isNowHidden);
+  if (tab) tab.classList.toggle('visible', isNowHidden);
+  localStorage.setItem('hrm_sidebar_hidden', isNowHidden ? '1' : '');
+}
 // 모바일에서 메뉴 선택 시 사이드바 자동 닫기
 (function() {
   const isMobile = () => window.innerWidth <= 768;
@@ -5259,6 +5318,13 @@ populateFilters();
     if (idx >= 0) currentPersonIdx = idx;
   }
 })();
+// 사이드바 숨김 상태 복원 (데스크탑 전용)
+if (window.innerWidth > 768 && localStorage.getItem('hrm_sidebar_hidden') === '1') {
+  document.getElementById('sidebar').classList.add('sidebar-hidden');
+  document.body.classList.add('sidebar-hidden');
+  const _tab = document.getElementById('sidebar-tab');
+  if (_tab) _tab.classList.add('visible');
+}
 showPage('personal');
 updateTrashBadge();
 checkAndCreateRepeatTasks();
