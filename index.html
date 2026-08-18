@@ -4118,22 +4118,29 @@ function saveTpl() {
     const tplRepeatMember   = document.getElementById('tpl-repeat-member').value;
     const tplRepeatInterval = parseInt(document.getElementById('tpl-repeat-interval').value) || 3;
     const tplRepeatNext     = document.getElementById('tpl-repeat-next').value;
-    if (tplRepeatMember && tplRepeatNext) {
-      if (prevRptId) {
-        // 기존 반복 업무 수정
-        const rptIdx = repeatTasks.findIndex(r => r.id === prevRptId);
-        if (rptIdx >= 0) {
-          repeatTasks[rptIdx] = {
-            ...repeatTasks[rptIdx],
-            title: name, assignedTo: tplRepeatMember,
-            category: data.category || '', priority: data.priority || '보통',
-            interval: tplRepeatInterval, nextDate: tplRepeatNext,
-            note: data.note || '',
-            subtasks: subtasks.map(s => ({ id: uid(), name: s.name })),
-          };
-        }
+    if (!tplRepeatMember) {
+      alert('반복 업무 담당자를 선택하세요.');
+      return;
+    }
+    if (!tplRepeatNext) {
+      alert('반복 업무의 다음 생성 월을 입력하세요.');
+      return;
+    }
+    if (prevRptId) {
+      // 기존 반복 업무 수정 시도
+      const rptIdx = repeatTasks.findIndex(r => r.id === prevRptId);
+      if (rptIdx >= 0) {
+        // 정상 수정
+        repeatTasks[rptIdx] = {
+          ...repeatTasks[rptIdx],
+          title: name, assignedTo: tplRepeatMember,
+          category: data.category || '', priority: data.priority || '보통',
+          interval: tplRepeatInterval, nextDate: tplRepeatNext,
+          note: data.note || '',
+          subtasks: subtasks.map(s => ({ id: uid(), name: s.name })),
+        };
       } else {
-        // 새 반복 업무 생성 + 템플릿에 ID 연결
+        // 고아 ID (반복업무가 이미 삭제된 경우) → 새로 생성
         const newRptId = uid();
         repeatTasks.push({
           id: newRptId, title: name, assignedTo: tplRepeatMember,
@@ -4145,9 +4152,21 @@ function saveTpl() {
         });
         if (curTpl) curTpl.repeatTaskId = newRptId;
       }
-      save('hrm_repeat_tasks', repeatTasks);
-      save('hrm_templates', templates);
+    } else {
+      // 새 반복 업무 생성 + 템플릿에 ID 연결
+      const newRptId = uid();
+      repeatTasks.push({
+        id: newRptId, title: name, assignedTo: tplRepeatMember,
+        category: data.category || '', priority: data.priority || '보통',
+        interval: tplRepeatInterval, nextDate: tplRepeatNext,
+        note: data.note || '',
+        subtasks: subtasks.map(s => ({ id: uid(), name: s.name })),
+        active: true, createdAt: new Date().toISOString(), history: []
+      });
+      if (curTpl) curTpl.repeatTaskId = newRptId;
     }
+    save('hrm_repeat_tasks', repeatTasks);
+    save('hrm_templates', templates);
   } else if (prevRptId) {
     // 반복 설정 해제 → 연결된 반복 업무 삭제
     repeatTasks = repeatTasks.filter(r => r.id !== prevRptId);
@@ -4162,6 +4181,10 @@ function saveTpl() {
 
   closeModal('tpl-modal');
   renderTemplates();
+  // 반복 업무 페이지가 열려 있으면 즉시 반영
+  if (document.getElementById('page-repeat') && document.getElementById('page-repeat').classList.contains('active')) {
+    renderRepeat();
+  }
 }
 
 function deleteTemplate(id) {
@@ -5082,6 +5105,12 @@ function saveRepeatTask() {
 function deleteRepeatTask(id) {
   if (!confirm('이 반복 설정을 삭제하시겠습니까?\n기존에 생성된 업무는 유지됩니다.')) return;
   repeatTasks = repeatTasks.filter(r => r.id !== id);
+  // 연결된 템플릿의 repeatTaskId 고아 참조도 함께 제거
+  const linkedTpl = templates.find(t => t.repeatTaskId === id);
+  if (linkedTpl) {
+    delete linkedTpl.repeatTaskId;
+    save('hrm_templates', templates);
+  }
   save('hrm_repeat_tasks', repeatTasks);
   renderRepeat();
 }
