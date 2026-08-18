@@ -477,6 +477,24 @@
   .done-item-actions { display:flex; gap:6px; flex-shrink:0; align-items:center; }
   .btn-restore { padding:4px 10px; font-size:11px; border-radius:6px; border:1px solid #52a07a; background:#e8f5ec; color:#3d8a68; cursor:pointer; font-weight:600; transition:all .15s; }
   .btn-restore:hover { background:#52a07a; color:#fff; }
+  /* ── 완료 업무 카드 그리드 ── */
+  .done-card-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:2px; }
+  @media (max-width:1100px) { .done-card-grid { grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:750px)  { .done-card-grid { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:480px)  { .done-card-grid { grid-template-columns:1fr; } }
+  .done-card { background:#fff; border-radius:10px; border:1px solid var(--gray-200); overflow:hidden; opacity:.88; transition:transform .15s, box-shadow .15s, opacity .15s; display:flex; flex-direction:column; }
+  .done-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(70,95,130,.15); opacity:1; }
+  .done-card-header { background:#52a07a; padding:10px 12px; display:flex; align-items:flex-start; gap:8px; cursor:pointer; }
+  .done-card-check { color:#fff; font-size:14px; flex-shrink:0; margin-top:1px; }
+  .done-card-name { color:#fff; font-weight:700; font-size:13px; line-height:1.45; flex:1; min-width:0; word-break:break-word; }
+  .done-card-header:hover .done-card-name { text-decoration:underline; }
+  .done-card-body { padding:10px 12px; flex:1; display:flex; flex-direction:column; gap:6px; }
+  .done-card-tags { display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
+  .done-card-dates { font-size:11px; color:#6a7480; display:flex; flex-direction:column; gap:2px; }
+  .done-card-subs { font-size:11px; color:#6a7480; }
+  .done-card-sub-row { display:flex; align-items:center; gap:5px; margin-top:3px; }
+  .done-card-actions { display:flex; gap:6px; margin-top:auto; padding-top:8px; }
+  .done-card-actions .btn-restore { flex:1; text-align:center; }
   .done-empty { text-align:center; padding:48px 0; color:#9eaab6; }
   .done-empty .icon { font-size:40px; margin-bottom:10px; }
 
@@ -3515,42 +3533,50 @@ function renderDone() {
       ? `필터 결과 ${doneTasks.length}건 / 전체 ${allDoneCnt}건`
       : `총 ${doneTasks.length}건 · 최근 완료 순`;
 
-    const listHtml = doneTasks.length ? doneTasks.map(t => {
-      const completedAt = (t.completedAt || t.updatedAt) ? new Date(t.completedAt || t.updatedAt).toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'}) : '-';
-      const startedAt   = t.start     ? new Date(t.start).toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'}) : '-';
-      const catBadge    = t.category  ? `<span style="background:#e0e7ff;color:#4338ca;border-radius:4px;padding:1px 6px;">${t.category}</span>` : '';
-      const subRows = t.subtasks && t.subtasks.length
-        ? `<div class="done-item-sub">
-            ${t.subtasks.slice(0,3).map(s=>`<div class="sub-done-row">
-              <span style="color:${s.done?'#52a07a':'#9eaab6'};">${s.done?'✔':'○'}</span>
-              <span>${s.name}</span>
-              ${s.done && s.doneAt ? `<span style="font-size:10px;color:#52a07a;margin-left:4px;">${s.doneAt.slice(0,10)}</span>` : ''}
-            </div>`).join('')}
-            ${t.subtasks.length>3?`<div style="color:#9eaab6;font-size:10px;padding-left:16px;">외 ${t.subtasks.length-3}개</div>`:''}
-           </div>` : '';
-      return `
-      <div class="done-item">
-        <div class="done-item-icon">✅</div>
-        <div class="done-item-body">
-          <div class="done-item-name" onclick="showDetail('${t.id}')" style="cursor:pointer;" title="클릭하여 상세 보기">${t.name}</div>
-          <div class="done-item-meta">
-            ${catBadge}
-            <span>📅 시작 ${startedAt}</span>
-            <span>🏁 완료 ${completedAt}</span>
-            ${t.subtasks&&t.subtasks.length?`<span>📋 하위업무 ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>`:''}
-            ${t.note?`<span title="${t.note}">📝 메모 있음</span>`:''}
-          </div>
-          ${subRows}
-        </div>
-        <div class="done-item-actions">
-          <button class="btn-restore" title="업무를 진행중으로 복원" onclick="restoreDoneTask('${t.id}')">↩ 복원</button>
-          <button class="s-btn" title="삭제" onclick="deleteDoneTask('${t.id}')">🗑️</button>
-        </div>
-      </div>`;
-    }).join('')
-    : isFiltered
-      ? `<div class="done-empty"><div class="icon">🔍</div><p>검색 결과가 없습니다</p></div>`
-      : `<div class="done-empty"><div class="icon">🎉</div><p>완료된 업무가 없습니다</p></div>`;
+    const listHtml = doneTasks.length
+      ? `<div class="done-card-grid">${doneTasks.map(t => {
+          const completedAt = (t.completedAt || t.updatedAt) ? new Date(t.completedAt || t.updatedAt).toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'}) : '-';
+          const startedAt   = t.start ? new Date(t.start).toLocaleDateString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit'}) : '-';
+          const catTag  = t.category ? `<span class="s-tag s-tag-cat" style="font-size:10px;">${t.category}</span>` : '';
+          const noteMark = t.note ? `<span title="${t.note}" style="font-size:11px;cursor:help;">📝</span>` : '';
+          const subDone  = t.subtasks ? t.subtasks.filter(s=>s.done).length : 0;
+          const subTotal = t.subtasks ? t.subtasks.length : 0;
+          const subRows = subTotal
+            ? `<div class="done-card-subs">
+                ${t.subtasks.slice(0,4).map(s=>`
+                  <div class="done-card-sub-row">
+                    <span style="color:${s.done?'#52a07a':'#c0c8d0'};">${s.done?'✔':'○'}</span>
+                    <span style="text-decoration:${s.done?'line-through':'none'};color:${s.done?'#9eaab6':'#495057'};">${s.name}</span>
+                  </div>`).join('')}
+                ${subTotal>4?`<div style="color:#9eaab6;font-size:10px;padding-left:16px;">외 ${subTotal-4}개</div>`:''}
+                <div style="margin-top:4px;font-size:10px;color:#52a07a;font-weight:600;">📋 ${subDone}/${subTotal} 완료</div>
+              </div>` : '';
+          return `
+          <div class="done-card">
+            <div class="done-card-header" onclick="showDetail('${t.id}')" title="클릭하여 상세 보기">
+              <span class="done-card-check">✅</span>
+              <div class="done-card-name">${t.name}</div>
+            </div>
+            <div class="done-card-body">
+              <div class="done-card-tags">
+                <span class="badge badge-${t.priority}" style="font-size:10px;">${t.priority}</span>
+                ${catTag}${noteMark}
+              </div>
+              <div class="done-card-dates">
+                ${t.start?`<span>📅 시작: ${startedAt}</span>`:''}
+                <span>🏁 완료: ${completedAt}</span>
+              </div>
+              ${subRows}
+              <div class="done-card-actions">
+                <button class="btn-restore" title="진행중으로 복원" onclick="restoreDoneTask('${t.id}');event.stopPropagation()">↩ 복원</button>
+                <button class="s-btn" title="삭제" onclick="deleteDoneTask('${t.id}');event.stopPropagation()">🗑️</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}</div>`
+      : isFiltered
+        ? `<div class="done-empty"><div class="icon">🔍</div><p>검색 결과가 없습니다</p></div>`
+        : `<div class="done-empty"><div class="icon">🎉</div><p>완료된 업무가 없습니다</p></div>`;
 
     return `<div class="done-panel ${mi===doneMemberIdx?'active':''}" id="done-panel-${mi}">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
@@ -3566,7 +3592,7 @@ function renderDone() {
         <span style="font-size:12px;color:#6a7480;">${countLabel}</span>
         ${allDoneCnt && !isFiltered ? `<button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="deleteAllDone('${m.id}')">🗑️ 전체 삭제</button>` : ''}
       </div>
-      <div class="done-list">${listHtml}</div>
+      ${listHtml}
     </div>`;
   }).join('');
 }
