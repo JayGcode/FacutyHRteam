@@ -1927,12 +1927,16 @@ let memberSyncTimes    = load('hrm_member_sync_times', {}); // 직원별 마지�
 // hintMemberId: hrm_memos / hrm_personal_order 저장 시 어떤 직원인지 알려주는 힌트
 function save(key, val, hintMemberId) {
   localStorage.setItem(key, JSON.stringify(val));
+  // 반복업무 저장 시각 기록 (Drive 덮어쓰기 방지용)
+  if (key === 'hrm_repeat_tasks') {
+    localStorage.setItem('hrm_repeat_tasks_saved_at', new Date().toISOString());
+  }
   if (_driveLoading || key === 'hrm_drive_config' || !driveConfig.enabled || !driveConfig.url) return;
   const SHARED_KEYS = ['hrm_members','hrm_categories','hrm_handovers','hrm_templates','hrm_trash'];
   if (key === 'hrm_repeat_tasks') {
-    // 반복업무 → 즉시(1초) 별도 저장 (누락 방지)
+    // 반복업무 → 딜레이 없이 즉시 Drive 저장 (창 닫기 전 누락 방지)
     clearTimeout(_repeatSaveTimer);
-    _repeatSaveTimer = setTimeout(() => pushRepeatTasksData(true), 1000);
+    _repeatSaveTimer = setTimeout(() => pushRepeatTasksData(true), 0);
   } else if (SHARED_KEYS.includes(key)) {
     // 공유 데이터 → shared.json 자동저장
     clearTimeout(_sharedSaveTimer);
@@ -4633,7 +4637,15 @@ async function syncFromDrive() {
     if (data.memos)         { memos         = data.memos;         save('hrm_memos',         memos); }
     if (data.trash)         { trash         = data.trash;         save('hrm_trash',         trash); }
     if (data.personalOrder) { personalOrder = data.personalOrder; save('hrm_personal_order', personalOrder); }
-    if (data.repeatTasks)   { repeatTasks   = data.repeatTasks;   save('hrm_repeat_tasks',  repeatTasks); }
+    // 반복업무: Drive 데이터가 로컬보다 최신일 때만 덮어쓰기 (창 닫기 경쟁 조건 방지)
+    if (data.repeatTasks) {
+      const driveAt = new Date(data.savedAt || 0).getTime();
+      const localAt = new Date(load('hrm_repeat_tasks_saved_at', 0) || 0).getTime();
+      if (driveAt >= localAt || !repeatTasks.length) {
+        repeatTasks = data.repeatTasks;
+        localStorage.setItem('hrm_repeat_tasks', JSON.stringify(repeatTasks));
+      }
+    }
     // 직원별 마지막 저장 시각 수신
     if (data.memberSavedAt) {
       memberSyncTimes = { ...memberSyncTimes, ...data.memberSavedAt };
@@ -5468,6 +5480,16 @@ if (driveConfig.enabled && driveConfig.url) {
   // 드라이브 미연동 시에도 백업 상태 표시 갱신
   checkAndAutoBackup();
 }
+
+// 창 닫힐 때 반복업무 강제 저장 (sendBeacon — 비동기 fetch보다 신뢰성 높음)
+window.addEventListener('beforeunload', () => {
+  if (!driveConfig.enabled || !driveConfig.url) return;
+  const payload = JSON.stringify({
+    action: 'saveShared',
+    data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
+  });
+  try { navigator.sendBeacon(driveConfig.url, new Blob([payload], { type: 'application/json' })); } catch(e) {}
+});
 </script>
 </body>
 </html>
