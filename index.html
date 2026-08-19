@@ -4705,7 +4705,27 @@ async function syncFromDrive() {
       return;
     }
     _driveLoading = true;
-    if (data.tasks)         { tasks         = data.tasks;         save('hrm_tasks',         tasks); }
+    // ── 업무: 업무별 updatedAt 비교 → 더 최신 버전 유지 (서버 불안정 시 로컬 데이터 보호) ──
+    if (data.tasks) {
+      const driveMap = {};
+      (data.tasks || []).forEach(t => driveMap[t.id] = t);
+      const localMap = {};
+      tasks.forEach(t => localMap[t.id] = t);
+      const allIds = new Set([...Object.keys(localMap), ...Object.keys(driveMap)]);
+      const merged = [];
+      allIds.forEach(id => {
+        const local = localMap[id];
+        const drive = driveMap[id];
+        if (!local)  { merged.push(drive);  return; }  // 드라이브에만 있으면 추가
+        if (!drive)  { merged.push(local);  return; }  // 로컬에만 있으면 유지
+        // 둘 다 있으면 updatedAt(없으면 createdAt) 비교 → 최신 유지
+        const lt = new Date(local.updatedAt || local.createdAt || 0).getTime();
+        const dt = new Date(drive.updatedAt || drive.createdAt || 0).getTime();
+        merged.push(dt >= lt ? drive : local);
+      });
+      tasks = merged;
+      save('hrm_tasks', tasks);
+    }
     if (data.members)       { members       = data.members;       save('hrm_members',       members); }
     if (data.categories)    { categories    = data.categories;    save('hrm_categories',    categories); }
     if (data.handovers)     { handovers     = data.handovers;     save('hrm_handovers',     handovers); }
