@@ -2207,7 +2207,6 @@ function makeStickyCard(t, opts) {
   if (t.subtasks && t.subtasks.length) {
     const doneCnt = t.subtasks.filter(s=>s.done).length;
     const total   = t.subtasks.length;
-    const pct     = total ? Math.round(doneCnt/total*100) : 0;
 
     if (isPersonal) {
       // 개인별 현황: 미완료 우선 최대 4개 표시 (완료된 항목 제외)
@@ -2226,10 +2225,6 @@ function makeStickyCard(t, opts) {
           </div>`).join('')}
         ${hiddenCnt>0?`<div style="font-size:10px;color:#9eaab6;padding-left:19px;">미완료 ${hiddenCnt}개 더...</div>`:''}
         ${doneCnt>0?`<div style="font-size:10px;color:#9eaab6;padding-left:19px;">완료 ${doneCnt}개 숨김</div>`:''}
-        <div class="s-sub-count">
-          <span>${doneCnt}/${total}</span>
-          <div class="bar"><div class="bar-f" style="width:${pct}%;"></div></div>
-        </div>
       </div>`;
     } else {
       // 대시보드 칸반: 하위업무 숨김 (진행률 바에 반영됨)
