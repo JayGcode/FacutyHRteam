@@ -290,6 +290,13 @@
   .s-action-btns { display:flex; gap:3px; }
   .s-btn { border:none; background:none; cursor:pointer; font-size:13px; padding:2px 4px; border-radius:4px; opacity:.5; transition:opacity .15s; }
   .s-btn:hover { opacity:1; background:#f0f4f8; }
+  /* ── 핀 버튼 ── */
+  .s-pin-btn { border:none; background:none; cursor:pointer; font-size:13px; padding:2px 5px; border-radius:4px; opacity:.3; transition:opacity .15s, transform .15s; line-height:1; color:#888; flex-shrink:0; }
+  .s-pin-btn:hover { opacity:.8; background:#f0f4f8; transform:rotate(-30deg); }
+  .s-pin-btn.pinned { opacity:1; color:#e8b84b; transform:rotate(-30deg); }
+  .personal-card.card-pinned { border:2px solid #e8b84b !important; box-shadow:0 2px 10px rgba(232,184,75,.18) !important; }
+  .personal-card.card-pinned .s-name-header { padding-right:28px; position:relative; }
+  .pin-mark { position:absolute; top:8px; right:10px; font-size:11px; opacity:.75; pointer-events:none; }
 
   /* ── 우선순위 컬러 헤더 (대분류명 영역) ── */
   .s-name-header {
@@ -2232,14 +2239,19 @@ function makeStickyCard(t, opts) {
     }   // end else (kanban)
   }     // end if (subtasks.length)
 
-  // 드래그 핸들러: 개인별 현황 vs 칸반 구분
+  // 핀 여부 (개인별 현황 전용)
+  const isPinned = isPersonal && !!t.pinned;
+
+  // 드래그 핸들러: 개인별 현황 vs 칸반 구분 / 핀 고정 시 드래그 비활성화
   const dragAttrs = isPersonal
-    ? `draggable="true"
-       data-pid="${t.id}"
-       ondragstart="pDragStart(event,'${t.id}','${memberId}')"
-       ondragend="pDragEnd(event)"
-       ondragover="pDragOver(event,'${t.id}');event.preventDefault();"
-       ondrop="pDrop(event,'${memberId}','${t.id}')"`
+    ? isPinned
+      ? `draggable="false" data-pid="${t.id}"`
+      : `draggable="true"
+         data-pid="${t.id}"
+         ondragstart="pDragStart(event,'${t.id}','${memberId}')"
+         ondragend="pDragEnd(event)"
+         ondragover="pDragOver(event,'${t.id}');event.preventDefault();"
+         ondrop="pDrop(event,'${memberId}','${t.id}')"`
     : `draggable="true"
        data-id="${t.id}"
        ondragstart="dragStart(event,'${t.id}')"
@@ -2247,6 +2259,11 @@ function makeStickyCard(t, opts) {
        ondragover="kDragOver(event,'${t.id}');event.preventDefault();"
        ondrop="kDrop(event,'${t.id}','${t.member}')"`;
 
+  // 핀 버튼 (개인별 현황에서만)
+  const pinBtn = isPersonal
+    ? `<button class="s-pin-btn${isPinned?' pinned':''}" title="${isPinned?'핀 해제 (드래그 잠금 중)':'핀 고정 (드래그 이동 잠금)'}"
+         onclick="togglePin('${t.id}');event.stopPropagation()">📌</button>`
+    : '';
 
   // 하단 버튼: 개인별 현황은 칸반 상태 선택도 동일하게 사용
   const actionsHtml = `
@@ -2255,17 +2272,19 @@ function makeStickyCard(t, opts) {
           ${['대기','진행중','지연','완료','보류'].map(s=>`<option value="${s}"${t.status===s?' selected':''}>${s}</option>`).join('')}
         </select>
         <div class="s-action-btns">
+          ${pinBtn}
           <button class="s-btn" title="수정" onclick="editTask('${t.id}')">✏️</button>
           <button class="s-btn" title="삭제" onclick="${isPersonal?`deleteTaskPersonal('${t.id}','${memberId}')`:`deleteTaskKanban('${t.id}')`}">🗑️</button>
         </div>
       </div>`;
 
   return `
-  <div class="sticky-card${isPersonal?' personal-card':''} pri-${t.priority} status-${t.status}"
+  <div class="sticky-card${isPersonal?' personal-card':''} pri-${t.priority} status-${t.status}${isPinned?' card-pinned':''}"
        ${dragAttrs}>
     <div class="sticky-card-inner">
       <div class="s-name-header">
         <div class="s-name" onclick="showDetail('${t.id}')">${t.name}</div>
+        ${isPinned ? `<span class="pin-mark" title="드래그 이동 잠금 중">📌</span>` : ''}
       </div>
       <div class="s-tags">
         <span class="badge badge-${t.priority}" style="font-size:10px;">${t.priority}</span>
@@ -3325,8 +3344,21 @@ function autoResizeMemo(ta) {
   ta.style.height = ta.scrollHeight + 'px';
 }
 
+// ── 카드 핀 고정 토글 ──
+function togglePin(taskId) {
+  const t = tasks.find(tt => tt.id === taskId);
+  if (!t) return;
+  t.pinned = !t.pinned;
+  t.updatedAt = new Date().toISOString();
+  saveTasks([t.member]);
+  renderPersonal();
+}
+
 // ── 개인별 현황 드래그 & 드롭 ──
 function pDragStart(e, taskId, memberId) {
+  // 핀 고정된 카드는 드래그 차단
+  const t = tasks.find(tt => tt.id === taskId);
+  if (t && t.pinned) { e.preventDefault(); return; }
   pDragTaskId   = taskId;
   pDragMemberId = memberId;
   e.dataTransfer.effectAllowed = 'move';
