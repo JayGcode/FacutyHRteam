@@ -5784,8 +5784,29 @@ if (window.innerWidth > 768 && localStorage.getItem('hrm_sidebar_hidden') === '1
 showPage('personal');
 updateTrashBadge();
 checkAndCreateRepeatTasks();
-// HTML 파싱 완료 후 잠금 초기화 (오버레이 HTML이 script 뒤에 있으므로 setTimeout 필요)
-setTimeout(function() { initAppLock(); renderLockSettings(); }, 0);
+// 잠금 오버레이 요소를 JS로 직접 생성 (DOM 파싱 순서 문제 완전 해결)
+(function() {
+  if (!document.getElementById('lock-overlay')) {
+    document.body.insertAdjacentHTML('beforeend', `
+<div id="lock-overlay" style="position:fixed;inset:0;background:rgba(30,40,55,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:99999;display:none;align-items:center;justify-content:center;">
+  <div class="lock-box">
+    <div class="lock-logo">🔐</div>
+    <div class="lock-title">교원인사팀 업무현황</div>
+    <div class="lock-sub">암호를 입력하여 잠금을 해제하세요</div>
+    <input type="password" id="lock-pw-input" class="lock-input" placeholder="암호 입력" onkeydown="if(event.key==='Enter')tryUnlock()">
+    <button class="lock-unlock-btn" onclick="tryUnlock()">잠금 해제</button>
+    <div id="lock-error" class="lock-error-msg"></div>
+    <div class="lock-hint">편집 암호 또는 조회 암호를 입력하세요</div>
+  </div>
+</div>
+<div id="view-only-banner">
+  👁️ 조회 전용 모드 — 수정·추가·삭제가 제한됩니다
+  &nbsp;<button onclick="lockApp()" style="border:none;background:rgba(0,0,0,.12);padding:2px 10px;border-radius:10px;cursor:pointer;font-size:11px;color:inherit;">🔒 잠금</button>
+</div>`);
+  }
+  initAppLock();
+  renderLockSettings();
+})();
 // 앱 시작 시 드라이브 연동이 설정되어 있으면 자동으로 불러오기
 if (driveConfig.enabled && driveConfig.url) {
   syncFromDrive(true).then(() => {
@@ -5807,23 +5828,6 @@ window.addEventListener('beforeunload', () => {
   try { navigator.sendBeacon(driveConfig.url, new Blob([payload], { type: 'application/json' })); } catch(e) {}
 });
 </script>
-<!-- 앱 잠금 오버레이 -->
-<div id="lock-overlay">
-  <div class="lock-box">
-    <div class="lock-logo">🔐</div>
-    <div class="lock-title">교원인사팀 업무현황</div>
-    <div class="lock-sub">암호를 입력하여 잠금을 해제하세요</div>
-    <input type="password" id="lock-pw-input" class="lock-input" placeholder="암호 입력"
-           onkeydown="if(event.key==='Enter')tryUnlock()">
-    <button class="lock-unlock-btn" onclick="tryUnlock()">잠금 해제</button>
-    <div id="lock-error" class="lock-error-msg"></div>
-    <div class="lock-hint">편집 암호 또는 조회 암호를 입력하세요</div>
-  </div>
-</div>
-<!-- 조회 전용 배너 -->
-<div id="view-only-banner">
-  👁️ 조회 전용 모드 — 수정·추가·삭제가 제한됩니다
-  &nbsp;<button onclick="lockApp()" style="border:none;background:rgba(0,0,0,.12);padding:2px 10px;border-radius:10px;cursor:pointer;font-size:11px;color:inherit;">🔒 잠금</button>
-</div>
+<!-- 잠금 오버레이/배너는 스크립트 내에서 동적으로 생성됩니다 -->
 </body>
 </html>
