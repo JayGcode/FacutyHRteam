@@ -4705,7 +4705,10 @@ async function syncFromDrive() {
     // ① 공유 데이터 + 직원 업무 불러오기
     const res = await fetch(driveConfig.url + '?t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch(e) { throw new Error('AUTH_REQUIRED'); }  // HTML 응답 = 미로그인 리다이렉트
     if (data.error) throw new Error(data.error);
     if (data._empty) {
       if (status) status.textContent = '드라이브에 저장된 데이터가 없습니다. 현재 데이터를 드라이브에 업로드합니다...';
@@ -4765,7 +4768,13 @@ async function syncFromDrive() {
   } catch(err) {
     _driveLoading = false;
     console.error('Drive 불러오기 실패:', err);
-    if (status) status.textContent = '❌ 불러오기 실패: ' + err.message;
+    const isAuthErr = /AUTH_REQUIRED|403|401|Unauthorized|Forbidden/i.test(err.message);
+    if (isAuthErr) {
+      if (!_loginToastOn) { _loginToastOn = true; _showDriveToast('login'); }
+      if (status) status.textContent = '🔐 구글 로그인 필요 — 로그인 후 페이지를 새로고침하세요.';
+    } else {
+      if (status) status.textContent = '❌ 불러오기 실패: ' + err.message;
+    }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⬇️ 드라이브에서 불러오기'; }
   }
@@ -4789,15 +4798,17 @@ function _showDriveToast(type) {
   el.className = 'toast-' + type;  // login | retry
   el.style.display = 'flex';
 
+  // 기존 자동 닫기 타이머 항상 취소 (✕ 버튼으로만 닫힘)
+  clearTimeout(el._autoHide);
+
   if (type === 'login') {
-    el.innerHTML = `🔐 구글 계정 로그인이 필요합니다. 드라이브 저장이 실패했습니다.<br>
+    el.innerHTML = `🔐 구글 계정 로그인이 필요합니다.<br>
+      로그인 후 페이지를 새로고침하면 드라이브와 연동됩니다.<br>
       <a href="https://accounts.google.com" target="_blank">구글 로그인 →</a>
       <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
   } else {
     el.innerHTML = `⏳ 드라이브 저장 실패 — 1분 후 자동 재시도합니다.
       <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
-    clearTimeout(el._autoHide);
-    el._autoHide = setTimeout(() => { el.style.display = 'none'; }, 8000);
   }
 }
 
