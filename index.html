@@ -4695,7 +4695,7 @@ function toggleDriveEnabled(checked) {
   if (badge) badge.style.display = (driveConfig.enabled && driveConfig.url) ? '' : 'none';
 }
 
-async function syncFromDrive() {
+async function syncFromDrive(isInitial = false) {
   if (!driveConfig.url) { alert('먼저 Apps Script 웹 앱 URL을 입력하고 저장하세요.'); return; }
   const btn    = document.getElementById('drive-load-btn');
   const status = document.getElementById('drive-status');
@@ -4767,11 +4767,24 @@ async function syncFromDrive() {
     populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
     renderMemberSyncTable();
     if (status) status.textContent = '✅ 불러오기 완료: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
+    // ── 성공 시: 토스트 숨기기 + 플래그 초기화 ──
+    _loginToastOn = false;
+    _initialLoadFailed = false;
+    const toastEl = document.getElementById('drive-toast');
+    if (toastEl) toastEl.style.display = 'none';
   } catch(err) {
     _driveLoading = false;
     console.error('Drive 불러오기 실패:', err);
-    if (!_loginToastOn) { _loginToastOn = true; _showDriveToast(); }
-    if (status) status.textContent = '❌ 불러오기 실패 — 구글 로그인 확인 또는 잠시 후 새로고침하세요.';
+    if (isInitial && !_initialLoadFailed) {
+      // 페이지 첫 로드 실패: 8초 후 한 번 더 조용히 시도 (로그인 직후 쿠키 전파 대기)
+      _initialLoadFailed = true;
+      if (status) status.textContent = '🔄 드라이브 연결 확인 중... (잠시 후 재시도)';
+      setTimeout(() => syncFromDrive(false), 8000);
+    } else {
+      // 두 번째 이상 실패 또는 수동 시도: 토스트 표시
+      if (!_loginToastOn) { _loginToastOn = true; _showDriveToast(); }
+      if (status) status.textContent = '❌ 불러오기 실패 — 구글 로그인 확인 또는 잠시 후 새로고침하세요.';
+    }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⬇️ 드라이브에서 불러오기'; }
   }
@@ -4780,9 +4793,10 @@ async function syncFromDrive() {
 // ══════════════════════════════════════════
 //  드라이브 저장 실패 처리: 토스트 알림 + 자동 재시도
 // ══════════════════════════════════════════
-let _retryQueue   = { members: new Set(), shared: false };
-let _retryTimer   = null;
-let _loginToastOn = false;
+let _retryQueue        = { members: new Set(), shared: false };
+let _retryTimer        = null;
+let _loginToastOn      = false;
+let _initialLoadFailed = false;  // 페이지 첫 로드 실패 여부 (두 번째 실패 시에만 토스트)
 
 /** 토스트 표시 */
 function _showDriveToast() {
@@ -5666,7 +5680,7 @@ updateTrashBadge();
 checkAndCreateRepeatTasks();
 // 앱 시작 시 드라이브 연동이 설정되어 있으면 자동으로 불러오기
 if (driveConfig.enabled && driveConfig.url) {
-  syncFromDrive().then(() => {
+  syncFromDrive(true).then(() => {
     checkAndCreateRepeatTasks();
     checkAndAutoBackup();
   }).catch(() => {});
