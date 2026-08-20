@@ -504,6 +504,13 @@
   .done-card-actions .btn-restore { flex:1; text-align:center; }
   .done-empty { text-align:center; padding:48px 0; color:#9eaab6; }
   .done-empty .icon { font-size:40px; margin-bottom:10px; }
+  /* ── 드라이브 토스트 알림 ── */
+  #drive-toast { position:fixed; bottom:28px; right:28px; padding:13px 18px; border-radius:12px; font-size:13px; color:#fff; box-shadow:0 4px 20px rgba(0,0,0,.22); z-index:9999; display:none; align-items:center; gap:10px; max-width:360px; line-height:1.6; animation:toastIn .25s ease; }
+  @keyframes toastIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  #drive-toast.toast-login  { background:#4c6f98; }
+  #drive-toast.toast-retry  { background:#6a7480; }
+  #drive-toast a { color:#fff; font-weight:700; }
+  #drive-toast .toast-close { margin-left:auto; cursor:pointer; opacity:.7; font-size:15px; flex-shrink:0; }
 
   /* ── 반응형 ── */
   /* ── 햄버거 버튼 (모바일에서만 표시) ── */
@@ -4763,6 +4770,85 @@ async function syncFromDrive() {
   }
 }
 
+// ══════════════════════════════════════════
+//  드라이브 저장 실패 처리: 토스트 알림 + 자동 재시도
+// ══════════════════════════════════════════
+let _retryQueue   = { members: new Set(), shared: false };
+let _retryTimer   = null;
+let _loginToastOn = false;
+
+/** 토스트 표시 */
+function _showDriveToast(type) {
+  let el = document.getElementById('drive-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'drive-toast';
+    document.body.appendChild(el);
+  }
+  el.className = 'drive-toast-' + type;  // login | retry
+  el.style.display = 'flex';
+
+  if (type === 'login') {
+    el.innerHTML = `🔐 구글 계정 로그인이 필요합니다. 드라이브 저장이 실패했습니다.<br>
+      <a href="https://accounts.google.com" target="_blank">구글 로그인 →</a>
+      <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
+  } else {
+    el.innerHTML = `⏳ 드라이브 저장 실패 — 1분 후 자동 재시도합니다.
+      <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
+    clearTimeout(el._autoHide);
+    el._autoHide = setTimeout(() => { el.style.display = 'none'; }, 8000);
+  }
+}
+
+/** 재시도 스케줄 */
+function _scheduleRetry() {
+  clearTimeout(_retryTimer);
+  _retryTimer = setTimeout(async () => {
+    const status = document.getElementById('drive-status');
+    if (status) status.textContent = '🔄 자동 재시도 중...';
+
+    if (_retryQueue.shared) {
+      try { await pushSharedData(true); _retryQueue.shared = false; } catch(e) {}
+    }
+    for (const mid of [..._retryQueue.members]) {
+      try { await pushMemberData(mid, true); _retryQueue.members.delete(mid); } catch(e) {}
+    }
+
+    const stillPending = _retryQueue.members.size > 0 || _retryQueue.shared;
+    if (stillPending) {
+      if (status) status.textContent = '⏳ 재시도 실패 — 1분 후 다시 시도합니다.';
+      _scheduleRetry();
+    } else {
+      // 성공
+      _loginToastOn = false;
+      const toast = document.getElementById('drive-toast');
+      if (toast) toast.style.display = 'none';
+      if (status) status.textContent = '✅ 자동 재시도 저장 완료: ' + new Date().toLocaleString('ko-KR');
+    }
+  }, 60000);
+}
+
+/** 저장 실패 공통 처리 */
+function _handleDriveError(err, memberId) {
+  const isAuthErr = /403|401|Unauthorized|Forbidden/i.test(err.message);
+
+  // 재시도 큐 등록
+  if (memberId) _retryQueue.members.add(memberId);
+  else          _retryQueue.shared = true;
+
+  // 로그인 토스트 (한 번만)
+  if (isAuthErr && !_loginToastOn) {
+    _loginToastOn = true;
+    _showDriveToast('login');
+  } else if (!isAuthErr) {
+    _showDriveToast('retry');
+  }
+
+  const status = document.getElementById('drive-status');
+  if (status) status.textContent = '⏳ 저장 실패 — 1분 후 자동 재시도';
+  _scheduleRetry();
+}
+
 // ── 직원별 자동저장 트리거 (4초 디바운스) ──
 function triggerMemberSave(memberId) {
   if (!memberId || !driveConfig.enabled || !driveConfig.url) return;
@@ -4813,10 +4899,7 @@ async function pushMemberData(memberId, silent) {
     if (badge) badge.style.display = (driveConfig.enabled && driveConfig.url) ? '' : 'none';
   } catch(err) {
     console.error('Drive 직원저장 실패 (' + memberId + '):', err);
-    if (!silent) {
-      const status = document.getElementById('drive-status');
-      if (status) status.textContent = '❌ 저장 실패 (' + memberName(memberId) + '): ' + err.message;
-    }
+    _handleDriveError(err, memberId);
   }
 }
 
@@ -4846,10 +4929,7 @@ async function pushSharedData(silent) {
     }
   } catch(err) {
     console.error('Drive 공유데이터 저장 실패:', err);
-    if (!silent) {
-      const status = document.getElementById('drive-status');
-      if (status) status.textContent = '❌ 공유 데이터 저장 실패: ' + err.message;
-    }
+    _handleDriveError(err, null);
   }
 }
 
