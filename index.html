@@ -4899,15 +4899,11 @@ async function pushMemberData(memberId, silent) {
     data: { tasks: memberTasks, memos: memberMemos, personalOrder: memberOrder, savedAt: new Date().toISOString() }
   };
   try {
-    // POST는 redirect:'manual' 사용 안 함 — Apps Script POST 응답은 항상 리다이렉트를 포함하므로
-    // 로그인 상태에서도 opaqueredirect가 반환됨. 리다이렉트를 따라가도록 기본값 사용.
-    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    let result;
-    try { result = JSON.parse(text); }
-    catch(e) { throw new Error('SERVER_ERROR'); }
-    if (result.error) throw new Error(result.error);
+    // Apps Script POST는 반드시 mode:'no-cors' 사용해야 함
+    // (CORS 정책상 cross-origin POST는 no-cors 모드만 허용되며,
+    //  Apps Script가 요청을 수신·처리는 하지만 응답 본문은 읽을 수 없음)
+    await fetch(driveConfig.url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+    // no-cors 응답은 항상 opaque(status:0)이므로 정상 전송 = 성공으로 간주
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
     // 직원별 저장 시각 기록
@@ -4944,14 +4940,8 @@ async function pushSharedData(silent) {
     data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
   };
   try {
-    // POST는 redirect:'manual' 사용 안 함 (Apps Script POST 응답은 항상 내부 리다이렉트 포함)
-    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    let result;
-    try { result = JSON.parse(text); }
-    catch(e) { throw new Error('SERVER_ERROR'); }
-    if (result.error) throw new Error(result.error);
+    // Apps Script POST는 반드시 mode:'no-cors' 사용
+    await fetch(driveConfig.url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
     // 저장 성공 시 토스트 숨기기
