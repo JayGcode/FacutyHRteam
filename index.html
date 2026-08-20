@@ -4831,7 +4831,7 @@ function _scheduleRetry() {
 
 /** 저장 실패 공통 처리 */
 function _handleDriveError(err, memberId) {
-  const isAuthErr = /403|401|Unauthorized|Forbidden/i.test(err.message);
+  const isAuthErr = /403|401|Unauthorized|Forbidden|AUTH_REQUIRED/i.test(err.message);
 
   // 재시도 큐 등록
   if (memberId) _retryQueue.members.add(memberId);
@@ -4884,7 +4884,10 @@ async function pushMemberData(memberId, silent) {
   try {
     const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const result = await res.json();
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch(e) { throw new Error('AUTH_REQUIRED'); }  // HTML 응답 = 로그인 리다이렉트
     if (result.error) throw new Error(result.error);
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
@@ -4920,7 +4923,10 @@ async function pushSharedData(silent) {
   try {
     const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const result = await res.json();
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch(e) { throw new Error('AUTH_REQUIRED'); }  // HTML 응답 = 로그인 리다이렉트
     if (result.error) throw new Error(result.error);
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
