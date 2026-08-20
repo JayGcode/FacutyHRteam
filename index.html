@@ -4770,13 +4770,8 @@ async function syncFromDrive() {
   } catch(err) {
     _driveLoading = false;
     console.error('Drive 불러오기 실패:', err);
-    const isAuthErr = /AUTH_REQUIRED|403|401|Unauthorized|Forbidden/i.test(err.message);
-    if (isAuthErr) {
-      if (!_loginToastOn) { _loginToastOn = true; _showDriveToast('login'); }
-      if (status) status.textContent = '🔐 구글 로그인 필요 — 로그인 후 페이지를 새로고침하세요.';
-    } else {
-      if (status) status.textContent = '❌ 불러오기 실패: ' + err.message;
-    }
+    if (!_loginToastOn) { _loginToastOn = true; _showDriveToast(); }
+    if (status) status.textContent = '❌ 불러오기 실패 — 구글 로그인 확인 또는 잠시 후 새로고침하세요.';
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⬇️ 드라이브에서 불러오기'; }
   }
@@ -4790,28 +4785,27 @@ let _retryTimer   = null;
 let _loginToastOn = false;
 
 /** 토스트 표시 */
-function _showDriveToast(type) {
+function _showDriveToast() {
   let el = document.getElementById('drive-toast');
   if (!el) {
     el = document.createElement('div');
     el.id = 'drive-toast';
     document.body.appendChild(el);
   }
-  el.className = 'toast-' + type;  // login | retry
-  el.style.display = 'flex';
-
-  // 기존 자동 닫기 타이머 항상 취소 (✕ 버튼으로만 닫힘)
+  el.className = 'toast-login';
   clearTimeout(el._autoHide);
-
-  if (type === 'login') {
-    el.innerHTML = `🔐 구글 계정 로그인이 필요합니다.<br>
-      로그인 후 페이지를 새로고침하면 드라이브와 연동됩니다.<br>
-      <a href="https://accounts.google.com" target="_blank">구글 로그인 →</a>
-      <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
-  } else {
-    el.innerHTML = `⏳ 드라이브 저장 실패 — 1분 후 자동 재시도합니다.
-      <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
-  }
+  el.style.display = 'flex';
+  el.innerHTML = `
+    <div style="flex:1;">
+      ⚠️ <strong>드라이브 연동에 실패했습니다.</strong><br>
+      <span style="font-size:12px;opacity:.9;">
+        구글 미로그인 시:
+        <a href="https://accounts.google.com" target="_blank">구글 로그인 →</a>
+        후 새로고침<br>
+        서버 문제 시: 1분 후 자동 재시도합니다.
+      </span>
+    </div>
+    <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
 }
 
 /** 재시도 스케줄 */
@@ -4844,18 +4838,14 @@ function _scheduleRetry() {
 
 /** 저장 실패 공통 처리 */
 function _handleDriveError(err, memberId) {
-  const isAuthErr = /403|401|Unauthorized|Forbidden|AUTH_REQUIRED/i.test(err.message);
-
   // 재시도 큐 등록
   if (memberId) _retryQueue.members.add(memberId);
   else          _retryQueue.shared = true;
 
-  // 로그인 토스트 (한 번만)
-  if (isAuthErr && !_loginToastOn) {
+  // 토스트 표시 (한 번만)
+  if (!_loginToastOn) {
     _loginToastOn = true;
-    _showDriveToast('login');
-  } else if (!isAuthErr) {
-    _showDriveToast('retry');
+    _showDriveToast();
   }
 
   const status = document.getElementById('drive-status');
