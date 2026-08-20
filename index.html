@@ -4782,8 +4782,9 @@ async function syncFromDrive(isInitial = false) {
       setTimeout(() => syncFromDrive(false), 8000);
     } else {
       // 두 번째 이상 실패 또는 수동 시도: 토스트 표시
-      if (!_loginToastOn) { _loginToastOn = true; _showDriveToast(); }
-      if (status) status.textContent = '❌ 불러오기 실패 — 구글 로그인 확인 또는 잠시 후 새로고침하세요.';
+      const errMsg = err ? (err.message || String(err)) : '';
+      if (!_loginToastOn) { _loginToastOn = true; _showDriveToast(errMsg); }
+      if (status) status.textContent = '❌ 불러오기 실패 (' + errMsg.substring(0, 60) + ') — 잠시 후 새로고침하세요.';
     }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⬇️ 드라이브에서 불러오기'; }
@@ -4798,8 +4799,8 @@ let _retryTimer        = null;
 let _loginToastOn      = false;
 let _initialLoadFailed = false;  // 페이지 첫 로드 실패 여부 (두 번째 실패 시에만 토스트)
 
-/** 토스트 표시 */
-function _showDriveToast() {
+/** 토스트 표시 (errMsg: 실제 오류 메시지, 없으면 일반 메시지) */
+function _showDriveToast(errMsg) {
   let el = document.getElementById('drive-toast');
   if (!el) {
     el = document.createElement('div');
@@ -4809,15 +4810,18 @@ function _showDriveToast() {
   el.className = 'toast-login';
   clearTimeout(el._autoHide);
   el.style.display = 'flex';
+  const detail = errMsg
+    ? `<span style="font-size:11px;opacity:.8;display:block;margin-top:4px;word-break:break-all;">오류: ${errMsg}</span>`
+    : '';
   el.innerHTML = `
     <div style="flex:1;">
       ⚠️ <strong>드라이브 연동에 실패했습니다.</strong><br>
       <span style="font-size:12px;opacity:.9;">
-        구글 미로그인 시:
-        <a href="https://accounts.google.com" target="_blank">구글 로그인 →</a>
-        후 새로고침<br>
-        서버 문제 시: 1분 후 자동 재시도합니다.
+        서버·네트워크 문제 시 1분 후 자동 재시도합니다.<br>
+        계속 실패하면 <a href="https://accounts.google.com" target="_blank">구글 로그인 확인 →</a>
+        후 새로고침
       </span>
+      ${detail}
     </div>
     <span class="toast-close" onclick="document.getElementById('drive-toast').style.display='none'">✕</span>`;
 }
@@ -4856,14 +4860,22 @@ function _handleDriveError(err, memberId) {
   if (memberId) _retryQueue.members.add(memberId);
   else          _retryQueue.shared = true;
 
-  // 토스트 표시 (한 번만)
+  // 토스트 표시 (실제 오류 메시지 포함)
+  const errMsg = err ? (err.message || String(err)) : '';
   if (!_loginToastOn) {
     _loginToastOn = true;
-    _showDriveToast();
+    _showDriveToast(errMsg);
+  } else {
+    // 이미 표시 중이면 오류 메시지만 업데이트
+    const el = document.getElementById('drive-toast');
+    if (el) {
+      const old = el.querySelector('span[style*="word-break"]');
+      if (old) old.textContent = '오류: ' + errMsg;
+    }
   }
 
   const status = document.getElementById('drive-status');
-  if (status) status.textContent = '⏳ 저장 실패 — 1분 후 자동 재시도';
+  if (status) status.textContent = '⏳ 저장 실패 (' + errMsg.substring(0, 60) + ') — 1분 후 자동 재시도';
   _scheduleRetry();
 }
 
@@ -4899,11 +4911,13 @@ async function pushMemberData(memberId, silent) {
     data: { tasks: memberTasks, memos: memberMemos, personalOrder: memberOrder, savedAt: new Date().toISOString() }
   };
   try {
-    // Apps Script POST는 반드시 mode:'no-cors' 사용해야 함
-    // (CORS 정책상 cross-origin POST는 no-cors 모드만 허용되며,
-    //  Apps Script가 요청을 수신·처리는 하지만 응답 본문은 읽을 수 없음)
-    await fetch(driveConfig.url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-    // no-cors 응답은 항상 opaque(status:0)이므로 정상 전송 = 성공으로 간주
+    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch(e) { throw new Error('응답파싱실패 (HTML반환 — 로그인/CORS 문제일 수 있음)'); }
+    if (result.error) throw new Error('Apps Script 오류: ' + result.error);
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
     // 직원별 저장 시각 기록
@@ -4940,8 +4954,13 @@ async function pushSharedData(silent) {
     data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
   };
   try {
-    // Apps Script POST는 반드시 mode:'no-cors' 사용
-    await fetch(driveConfig.url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch(e) { throw new Error('응답파싱실패 (HTML반환 — 로그인/CORS 문제일 수 있음)'); }
+    if (result.error) throw new Error('Apps Script 오류: ' + result.error);
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
     // 저장 성공 시 토스트 숨기기
