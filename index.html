@@ -505,12 +505,13 @@
   .done-empty { text-align:center; padding:48px 0; color:#9eaab6; }
   .done-empty .icon { font-size:40px; margin-bottom:10px; }
   /* ── 드라이브 토스트 알림 ── */
-  #drive-toast { position:fixed; bottom:28px; right:28px; padding:13px 18px; border-radius:12px; font-size:13px; color:#fff; box-shadow:0 4px 20px rgba(0,0,0,.22); z-index:9999; display:none; align-items:center; gap:10px; max-width:360px; line-height:1.6; animation:toastIn .25s ease; }
+  #drive-toast { position:fixed; bottom:28px; right:28px; padding:14px 18px; border-radius:12px; font-size:13px; color:#fff; box-shadow:0 4px 20px rgba(0,0,0,.28); z-index:9999; display:none; align-items:flex-start; gap:10px; max-width:360px; line-height:1.6; animation:toastIn .25s ease; background:#4c6f98; }
   @keyframes toastIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
   #drive-toast.toast-login  { background:#4c6f98; }
-  #drive-toast.toast-retry  { background:#6a7480; }
-  #drive-toast a { color:#fff; font-weight:700; }
-  #drive-toast .toast-close { margin-left:auto; cursor:pointer; opacity:.7; font-size:15px; flex-shrink:0; }
+  #drive-toast.toast-retry  { background:#525f6e; }
+  #drive-toast a { color:#ffe08a; font-weight:700; text-decoration:underline; }
+  #drive-toast .toast-close { cursor:pointer; opacity:.75; font-size:16px; flex-shrink:0; line-height:1; margin-left:4px; }
+  #drive-toast .toast-close:hover { opacity:1; }
 
   /* ── 반응형 ── */
   /* ── 햄버거 버튼 (모바일에서만 표시) ── */
@@ -4785,7 +4786,7 @@ function _showDriveToast(type) {
     el.id = 'drive-toast';
     document.body.appendChild(el);
   }
-  el.className = 'drive-toast-' + type;  // login | retry
+  el.className = 'toast-' + type;  // login | retry
   el.style.display = 'flex';
 
   if (type === 'login') {
