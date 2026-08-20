@@ -4899,13 +4899,14 @@ async function pushMemberData(memberId, silent) {
     data: { tasks: memberTasks, memos: memberMemos, personalOrder: memberOrder, savedAt: new Date().toISOString() }
   };
   try {
-    const res = await fetch(driveConfig.url, { method: 'POST', redirect: 'manual', body: JSON.stringify(payload) });
-    if (res.type === 'opaqueredirect') throw new Error('AUTH_REQUIRED');
+    // POST는 redirect:'manual' 사용 안 함 — Apps Script POST 응답은 항상 리다이렉트를 포함하므로
+    // 로그인 상태에서도 opaqueredirect가 반환됨. 리다이렉트를 따라가도록 기본값 사용.
+    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
     let result;
     try { result = JSON.parse(text); }
-    catch(e) { throw new Error('AUTH_REQUIRED'); }
+    catch(e) { throw new Error('SERVER_ERROR'); }
     if (result.error) throw new Error(result.error);
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
@@ -4913,6 +4914,10 @@ async function pushMemberData(memberId, silent) {
     memberSyncTimes[memberId] = payload.data.savedAt;
     _driveLoading = true; save('hrm_member_sync_times', memberSyncTimes); _driveLoading = false;
     renderMemberSyncTable();
+    // 저장 성공 시 토스트 숨기기
+    _loginToastOn = false;
+    const toastEl = document.getElementById('drive-toast');
+    if (toastEl) toastEl.style.display = 'none';
     if (!silent) {
       const status = document.getElementById('drive-status');
       if (status) status.textContent = '✅ 저장 완료 (' + memberName(memberId) + '): ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
@@ -4939,16 +4944,20 @@ async function pushSharedData(silent) {
     data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
   };
   try {
-    const res = await fetch(driveConfig.url, { method: 'POST', redirect: 'manual', body: JSON.stringify(payload) });
-    if (res.type === 'opaqueredirect') throw new Error('AUTH_REQUIRED');
+    // POST는 redirect:'manual' 사용 안 함 (Apps Script POST 응답은 항상 내부 리다이렉트 포함)
+    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
     let result;
     try { result = JSON.parse(text); }
-    catch(e) { throw new Error('AUTH_REQUIRED'); }
+    catch(e) { throw new Error('SERVER_ERROR'); }
     if (result.error) throw new Error(result.error);
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
+    // 저장 성공 시 토스트 숨기기
+    _loginToastOn = false;
+    const toastEl = document.getElementById('drive-toast');
+    if (toastEl) toastEl.style.display = 'none';
     if (!silent) {
       const status = document.getElementById('drive-status');
       if (status) status.textContent = '✅ 공유 데이터 저장 완료: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
