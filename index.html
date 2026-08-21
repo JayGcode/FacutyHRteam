@@ -859,6 +859,23 @@
   .memo-empty .icon { font-size:28px; margin-bottom:6px; }
 
   /* ── 템플릿 ── */
+  .tpl-month-tabs {
+    display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; padding:4px 0;
+  }
+  .tpl-month-tab {
+    padding:5px 12px; border-radius:20px; border:1px solid var(--gray-300);
+    background:#fff; font-size:12px; color:var(--gray-700); cursor:pointer;
+    font-family:inherit; transition:all .15s;
+  }
+  .tpl-month-tab:hover { background:var(--accent); border-color:var(--primary); color:var(--primary); }
+  .tpl-month-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); font-weight:600; }
+  .tpl-month-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .tpl-month-chip {
+    padding:4px 10px; border-radius:14px; border:1px solid var(--gray-300);
+    background:#fff; font-size:12px; color:var(--gray-700); cursor:pointer;
+    font-family:inherit; user-select:none; transition:all .15s;
+  }
+  .tpl-month-chip.selected { background:var(--primary); color:#fff; border-color:var(--primary); }
   .tpl-toolbar {
     display:flex; justify-content:space-between; align-items:center;
     margin-bottom:20px; flex-wrap:wrap; gap:10px;
@@ -1089,7 +1106,7 @@ body.view-only #main { padding-top:30px; }
     <a class="active" onclick="showPage('personal')"><span class="icon">👤</span> 개인별 현황</a>
     <a onclick="showPage('done')"><span class="icon">✅</span> 완료 업무</a>
     <a onclick="showPage('repeat')"><span class="icon">🔁</span> 반복 업무</a>
-    <a onclick="showPage('templates')"><span class="icon">📋</span> 템플릿</a>
+    <a onclick="showPage('templates')"><span class="icon">📋</span> 템플릿(연간플랜)</a>
     <a onclick="showPage('tasks')"><span class="icon">📝</span> 업무 목록</a>
     <a onclick="showPage('calendar')"><span class="icon">📅</span> 업무 캘린더</a>
     <a onclick="showPage('handover')"><span class="icon">🔄</span> 업무 인수인계</a>
@@ -1205,14 +1222,34 @@ body.view-only #main { padding-top:30px; }
     <div id="page-templates" class="page">
       <div class="tpl-toolbar">
         <div>
-          <div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:4px;">📋 업무 템플릿</div>
+          <div style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:4px;">📋 업무 템플릿(연간플랜)</div>
           <div class="tpl-toolbar-desc">반복 업무를 템플릿으로 저장하고, 학기마다 바로 업무를 생성하세요.</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-          <input type="text" id="tpl-search-input" class="search-input" placeholder="🔍 템플릿 검색..." style="width:200px;"
+          <input type="text" id="tpl-search-input" class="search-input" placeholder="🔍 템플릿 검색..." style="width:180px;"
             oninput="tplSearch=this.value.trim();renderTemplates()">
+          <select id="tpl-cat-filter" class="filter-select" style="min-width:120px;" onchange="tplCatFilter=this.value;renderTemplates()">
+            <option value="">전체 카테고리</option>
+          </select>
           <button class="btn btn-primary edit-only-btn" onclick="openTemplateModal()">＋ 템플릿 추가</button>
         </div>
+      </div>
+      <!-- 월별 필터 탭 (학년도 기준: 3월~2월) -->
+      <div class="tpl-month-tabs" id="tpl-month-tabs">
+        <button class="tpl-month-tab active" data-month="" onclick="setTplMonth(this,'')">전체</button>
+        <button class="tpl-month-tab" data-month="3"  onclick="setTplMonth(this,'3')">3월</button>
+        <button class="tpl-month-tab" data-month="4"  onclick="setTplMonth(this,'4')">4월</button>
+        <button class="tpl-month-tab" data-month="5"  onclick="setTplMonth(this,'5')">5월</button>
+        <button class="tpl-month-tab" data-month="6"  onclick="setTplMonth(this,'6')">6월</button>
+        <button class="tpl-month-tab" data-month="7"  onclick="setTplMonth(this,'7')">7월</button>
+        <button class="tpl-month-tab" data-month="8"  onclick="setTplMonth(this,'8')">8월</button>
+        <button class="tpl-month-tab" data-month="9"  onclick="setTplMonth(this,'9')">9월</button>
+        <button class="tpl-month-tab" data-month="10" onclick="setTplMonth(this,'10')">10월</button>
+        <button class="tpl-month-tab" data-month="11" onclick="setTplMonth(this,'11')">11월</button>
+        <button class="tpl-month-tab" data-month="12" onclick="setTplMonth(this,'12')">12월</button>
+        <button class="tpl-month-tab" data-month="1"  onclick="setTplMonth(this,'1')">1월</button>
+        <button class="tpl-month-tab" data-month="2"  onclick="setTplMonth(this,'2')">2월</button>
+        <button class="tpl-month-tab" data-month="__none__" onclick="setTplMonth(this,'__none__')" style="color:#aab3bd;">월 미지정</button>
       </div>
       <div class="tpl-grid" id="tpl-grid"></div>
       <div id="tpl-empty" class="empty-state" style="display:none;">
@@ -1224,7 +1261,7 @@ body.view-only #main { padding-top:30px; }
       <div id="tpl-no-result" class="empty-state" style="display:none;">
         <div class="icon">🔍</div>
         <p>검색 결과가 없습니다</p>
-        <p style="font-size:12px;color:#9eaab6;margin-top:4px;">다른 검색어를 입력해 보세요</p>
+        <p style="font-size:12px;color:#9eaab6;margin-top:4px;">다른 검색어나 다른 월/카테고리를 선택해 보세요</p>
       </div>
     </div>
 
@@ -1636,6 +1673,24 @@ body.view-only #main { padding-top:30px; }
           <button type="button" class="btn-add-sub" onclick="addTplSubtaskField()">＋ 하위 업무 추가</button>
         </div>
       </div>
+      <!-- 해당 월 지정 -->
+      <div class="form-group">
+        <label>📅 해당 월 <small style="font-weight:400;color:#6a7480;">(학년도 기준, 중복 선택 가능)</small></label>
+        <div class="tpl-month-chips" id="tpl-month-chips">
+          <span class="tpl-month-chip" data-m="3">3월</span>
+          <span class="tpl-month-chip" data-m="4">4월</span>
+          <span class="tpl-month-chip" data-m="5">5월</span>
+          <span class="tpl-month-chip" data-m="6">6월</span>
+          <span class="tpl-month-chip" data-m="7">7월</span>
+          <span class="tpl-month-chip" data-m="8">8월</span>
+          <span class="tpl-month-chip" data-m="9">9월</span>
+          <span class="tpl-month-chip" data-m="10">10월</span>
+          <span class="tpl-month-chip" data-m="11">11월</span>
+          <span class="tpl-month-chip" data-m="12">12월</span>
+          <span class="tpl-month-chip" data-m="1">1월</span>
+          <span class="tpl-month-chip" data-m="2">2월</span>
+        </div>
+      </div>
       <div class="form-group">
         <label>비고 / 설명</label>
         <textarea id="tpl-note" placeholder="이 템플릿에 대한 설명이나 주의사항을 입력하세요" style="min-height:80px;"></textarea>
@@ -2038,7 +2093,9 @@ let tasks = load('hrm_tasks', []);
 let handovers = load('hrm_handovers', []);
 let templates = load('hrm_templates', []);
 let repeatTasks = load('hrm_repeat_tasks', []);
-let tplSearch = '';
+let tplSearch    = '';
+let tplMonthFilter = ''; // '' = 전체, '__none__' = 월 미지정, '3'~'12','1','2' = 해당 월
+let tplCatFilter   = ''; // '' = 전체카테고리
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 
@@ -4033,16 +4090,35 @@ function renderTemplates() {
   const empty    = document.getElementById('tpl-empty');
   const noResult = document.getElementById('tpl-no-result');
 
-  // 검색 필터링
+  // 카테고리 필터 드롭다운 동기화
+  const catSel = document.getElementById('tpl-cat-filter');
+  if (catSel) {
+    const prev = catSel.value;
+    catSel.innerHTML = '<option value="">전체 카테고리</option>' +
+      categories.map(c => `<option value="${c}" ${c === prev ? 'selected' : ''}>${c}</option>`).join('');
+    if (tplCatFilter) catSel.value = tplCatFilter;
+  }
+
+  // 필터링: 검색어 + 월 + 카테고리
   const kw = tplSearch.toLowerCase();
-  const filtered = kw
-    ? templates.filter(t =>
-        (t.name     && t.name.toLowerCase().includes(kw)) ||
-        (t.category && t.category.toLowerCase().includes(kw)) ||
-        (t.note     && t.note.toLowerCase().includes(kw)) ||
-        (t.subtasks && t.subtasks.some(s => s.name && s.name.toLowerCase().includes(kw)))
-      )
-    : templates;
+  let filtered = templates.filter(t => {
+    // 검색어
+    if (kw && !(
+      (t.name     && t.name.toLowerCase().includes(kw)) ||
+      (t.category && t.category.toLowerCase().includes(kw)) ||
+      (t.note     && t.note.toLowerCase().includes(kw)) ||
+      (t.subtasks && t.subtasks.some(s => s.name && s.name.toLowerCase().includes(kw)))
+    )) return false;
+    // 카테고리
+    if (tplCatFilter && t.category !== tplCatFilter) return false;
+    // 월 필터
+    if (tplMonthFilter === '__none__') {
+      if (t.months && t.months.length) return false; // 월 지정된 것 제외
+    } else if (tplMonthFilter) {
+      if (!t.months || !t.months.includes(tplMonthFilter)) return false;
+    }
+    return true;
+  });
 
   if (!templates.length) {
     grid.innerHTML = '';
@@ -4059,6 +4135,9 @@ function renderTemplates() {
   }
   if (noResult) noResult.style.display = 'none';
 
+  // 학년도 월 순서 (3월~2월)
+  const MONTH_ORDER = ['3','4','5','6','7','8','9','10','11','12','1','2'];
+
   grid.innerHTML = filtered.map(tpl => {
     const priorityColor = tpl.priority === '높음' ? '#c0614e' : tpl.priority === '낮음' ? '#5a9e6f' : '#e8b84b';
     const priorityBg    = tpl.priority === '높음' ? '#fff5f5' : tpl.priority === '낮음' ? '#f0fff4' : '#fffbeb';
@@ -4072,6 +4151,13 @@ function renderTemplates() {
           : '')
       : `<span class="tpl-no-sub">하위 업무 없음</span>`;
 
+    const monthBadges = (tpl.months && tpl.months.length)
+      ? tpl.months
+          .slice().sort((a,b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b))
+          .map(m => `<span class="tpl-meta-badge" style="background:#eef6ff;color:#4c6f98;">📅${m}월</span>`)
+          .join('')
+      : '';
+
     return `<div class="tpl-card">
       <div class="tpl-card-title">
         <span class="tpl-icon">📋</span>
@@ -4079,11 +4165,10 @@ function renderTemplates() {
         <span class="tpl-used-badge">${tpl.usedCount || 0}회 사용</span>
       </div>
       <div class="tpl-card-meta">
-        ${tpl.category
-          ? `<span class="tpl-meta-badge">${tpl.category}</span>`
-          : ''}
+        ${tpl.category ? `<span class="tpl-meta-badge">${tpl.category}</span>` : ''}
         <span class="tpl-meta-badge" style="background:${priorityBg};color:${priorityColor};">${tpl.priority || '보통'}</span>
         ${tpl.repeatTaskId ? `<span class="tpl-meta-badge" style="background:#edf4ff;color:#4c6f98;">🔁 반복</span>` : ''}
+        ${monthBadges}
         <span style="font-size:11px;color:#9eaab6;">${(tpl.subtasks||[]).length}개 하위업무</span>
       </div>
       ${tpl.note ? `<div class="tpl-card-note">${tpl.note}</div>` : ''}
@@ -4095,6 +4180,13 @@ function renderTemplates() {
       </div>
     </div>`;
   }).join('');
+}
+
+function setTplMonth(el, month) {
+  tplMonthFilter = month;
+  document.querySelectorAll('.tpl-month-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderTemplates();
 }
 
 function openTemplateModal(id) {
@@ -4137,6 +4229,14 @@ function openTemplateModal(id) {
     const nm2 = new Date(); nm2.setMonth(nm2.getMonth() + 1);
     document.getElementById('tpl-repeat-next').value = nm2.getFullYear() + '-' + String(nm2.getMonth()+1).padStart(2,'0');
   }
+
+  // 월 칩 초기화
+  const chips = document.querySelectorAll('#tpl-month-chips .tpl-month-chip');
+  const savedMonths = tpl && tpl.months ? tpl.months : [];
+  chips.forEach(chip => {
+    chip.classList.toggle('selected', savedMonths.includes(chip.dataset.m));
+    chip.onclick = () => chip.classList.toggle('selected');
+  });
 
   document.getElementById('tpl-modal').classList.add('active');
 }
@@ -4216,12 +4316,17 @@ function saveTpl() {
     .map(inp => inp.value.trim()).filter(Boolean)
     .map(n => ({ id: uid(), name: n }));
 
+  // 선택된 월 목록 수집
+  const months = Array.from(document.querySelectorAll('#tpl-month-chips .tpl-month-chip.selected'))
+    .map(c => c.dataset.m);
+
   const data = {
     name,
     category: document.getElementById('tpl-category').value,
     priority: document.getElementById('tpl-priority').value,
     note:     document.getElementById('tpl-note').value.trim(),
     subtasks,
+    months,
   };
 
   if (id) {
@@ -4776,14 +4881,13 @@ async function syncFromDrive(isInitial = false) {
   if (status) status.textContent = '드라이브에서 데이터를 불러오는 중...';
   try {
     // ① 공유 데이터 + 직원 업무 불러오기
-    // redirect:'manual' → 로그인 리다이렉트 발생 시 opaqueredirect로 감지
-    const res = await fetch(driveConfig.url + '?t=' + Date.now(), { redirect: 'manual' });
-    if (res.type === 'opaqueredirect') throw new Error('AUTH_REQUIRED');
+    // "모든 사람" 공개 배포이므로 redirect:'manual' 불필요 — Safari(iPad)에서 오작동 방지
+    const res = await fetch(driveConfig.url + '?t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
     let data;
     try { data = JSON.parse(text); }
-    catch(e) { throw new Error('AUTH_REQUIRED'); }
+    catch(e) { throw new Error('응답 파싱 실패 — URL을 확인하거나 Apps Script 배포를 재확인하세요'); }
     if (data.error) throw new Error(data.error);
     if (data._empty) {
       if (status) status.textContent = '드라이브에 저장된 데이터가 없습니다. 현재 데이터를 드라이브에 업로드합니다...';
@@ -5127,8 +5231,8 @@ function addMonths(ym, n) {
 //  앱 잠금 / 조회 전용 모드
 // ══════════════════════════════════════════
 // ↓↓ 기본 암호 설정 — 이 값을 원하는 암호로 변경하세요 ↓↓
-const DEFAULT_EDIT_PASSWORD = 'e5242';   // ← 편집 암호 (추가·수정·삭제 가능)
-const DEFAULT_VIEW_PASSWORD = '5245v';   // ← 조회 암호 (열람만 가능)
+const DEFAULT_EDIT_PASSWORD = '편집암호1234';   // ← 편집 암호 (추가·수정·삭제 가능)
+const DEFAULT_VIEW_PASSWORD = '조회암호1234';   // ← 조회 암호 (열람만 가능)
 // ↑↑ 변경 후 저장 — 기존에 다른 암호를 설정한 기기는 설정 탭에서 재설정 필요 ↑↑
 let appPasswords = load('hrm_app_passwords', { edit: DEFAULT_EDIT_PASSWORD, view: DEFAULT_VIEW_PASSWORD });
 let appLockMode  = 'edit'; // 'edit' | 'view' | 'locked'
