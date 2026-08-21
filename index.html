@@ -6600,6 +6600,32 @@ if (window.innerWidth > 768 && localStorage.getItem('hrm_sidebar_hidden') === '1
 showPage('personal');
 updateTrashBadge();
 checkAndCreateRepeatTasks();
+
+// ── 드래그 상태 안전망: 드래그가 비정상 종료되면 pointer-events:none이 남아 버튼이 먹통이 됨 ──
+(function() {
+  const DRAG_CLASSES = [
+    'personal-dragging','kanban-dragging','memo-dragging',
+    'sd-dragging','tsd-dragging','sub-modal-dragging'
+  ];
+  const ITEM_CLASSES = [
+    'pdragging','pdrag-over','card-dragging',
+    'mdragging','mdrag-over-top','mdrag-over-bottom'
+  ];
+  function resetDragState() {
+    DRAG_CLASSES.forEach(c => document.body.classList.remove(c));
+    document.querySelectorAll('.' + ITEM_CLASSES.join(',.'))
+      .forEach(el => ITEM_CLASSES.forEach(c => el.classList.remove(c)));
+    pDragTaskId = null; pDragMemberId = null;
+  }
+  // dragend 는 정상 종료 시 발생 — 여기서도 한 번 더 보장
+  document.addEventListener('dragend', resetDragState);
+  // pointerup: 마우스를 뗄 때 드래그 클래스가 남아 있으면 제거 (100ms 딜레이로 정상 drop 이후 실행)
+  document.addEventListener('pointerup', function() {
+    if (DRAG_CLASSES.some(c => document.body.classList.contains(c))) {
+      setTimeout(resetDragState, 150);
+    }
+  });
+})();
 // 잠금 오버레이 요소를 JS로 직접 생성 (DOM 파싱 순서 문제 완전 해결)
 (function() {
   if (!document.getElementById('lock-overlay')) {
