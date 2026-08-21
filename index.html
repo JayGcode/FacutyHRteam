@@ -1234,9 +1234,8 @@ body.view-only #main { padding-top:30px; }
           <button class="btn btn-primary edit-only-btn" onclick="openTemplateModal()">＋ 템플릿 추가</button>
         </div>
       </div>
-      <!-- 월별 필터 탭 (학년도 기준: 3월~2월) -->
+      <!-- 월별 필터 탭 (학년도 기준: 3월~2월 → 전체 → 월미지정) -->
       <div class="tpl-month-tabs" id="tpl-month-tabs">
-        <button class="tpl-month-tab active" data-month="" onclick="setTplMonth(this,'')">전체</button>
         <button class="tpl-month-tab" data-month="3"  onclick="setTplMonth(this,'3')">3월</button>
         <button class="tpl-month-tab" data-month="4"  onclick="setTplMonth(this,'4')">4월</button>
         <button class="tpl-month-tab" data-month="5"  onclick="setTplMonth(this,'5')">5월</button>
@@ -1249,6 +1248,7 @@ body.view-only #main { padding-top:30px; }
         <button class="tpl-month-tab" data-month="12" onclick="setTplMonth(this,'12')">12월</button>
         <button class="tpl-month-tab" data-month="1"  onclick="setTplMonth(this,'1')">1월</button>
         <button class="tpl-month-tab" data-month="2"  onclick="setTplMonth(this,'2')">2월</button>
+        <button class="tpl-month-tab active" data-month="" onclick="setTplMonth(this,'')">전체</button>
         <button class="tpl-month-tab" data-month="__none__" onclick="setTplMonth(this,'__none__')" style="color:#aab3bd;">월 미지정</button>
       </div>
       <div class="tpl-grid" id="tpl-grid"></div>
@@ -2139,7 +2139,16 @@ function showPage(name) {
   if (name === 'personal') renderPersonal();
   if (name === 'done') renderDone();
   if (name === 'repeat') renderRepeat();
-  if (name === 'templates') renderTemplates();
+  if (name === 'templates') {
+    // 현재 월로 탭 자동 설정
+    const curM = String(new Date().getMonth() + 1);
+    tplMonthFilter = curM;
+    const tabs = document.querySelectorAll('.tpl-month-tab');
+    tabs.forEach(t => {
+      t.classList.toggle('active', t.dataset.month === curM);
+    });
+    renderTemplates();
+  }
   if (name === 'calendar') renderCalendar();
   if (name === 'handover') renderHandover();
   if (name === 'settings') renderSettings();
@@ -4176,6 +4185,7 @@ function renderTemplates() {
       <div class="tpl-card-actions">
         <button class="btn btn-success btn-sm" onclick="openCreateFromTemplate('${tpl.id}')">⚡ 업무 생성</button>
         <button class="btn btn-outline btn-sm" onclick="openTemplateModal('${tpl.id}')">✏️ 편집</button>
+        <button class="btn btn-outline btn-sm" onclick="duplicateTemplate('${tpl.id}')" title="같은 내용으로 복제">📋 복제</button>
         <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${tpl.id}')">🗑️</button>
       </div>
     </div>`;
@@ -4186,6 +4196,26 @@ function setTplMonth(el, month) {
   tplMonthFilter = month;
   document.querySelectorAll('.tpl-month-tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
+  renderTemplates();
+}
+
+function duplicateTemplate(id) {
+  if (!editAllowed()) return;
+  const src = templates.find(t => t.id === id);
+  if (!src) return;
+  const copy = {
+    ...JSON.parse(JSON.stringify(src)), // 깊은 복사
+    id: 'tpl' + Date.now(),
+    name: src.name + ' (복사본)',
+    usedCount: 0,
+    createdAt: today(),
+    repeatTaskId: undefined, // 반복 업무 연결은 복제 안 함
+  };
+  delete copy.repeatTaskId;
+  templates.push(copy);
+  save('hrm_templates', templates);
+  schedulePush('shared');
+  showToast('템플릿이 복제되었습니다.');
   renderTemplates();
 }
 
