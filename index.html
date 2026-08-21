@@ -930,8 +930,31 @@
   .tpl-sub-item::before { content:'•'; color:#9eaab6; flex-shrink:0; }
   .tpl-no-sub { font-size:11px; color:#9eaab6; }
   .tpl-card-actions {
-    display:flex; gap:6px; justify-content:flex-end; margin-top:auto;
+    display:flex; gap:6px; align-items:center; margin-top:auto; flex-wrap:nowrap;
   }
+  .tpl-card-actions .btn-success { flex:1; white-space:nowrap; }
+  .tpl-more-wrap { position:relative; flex-shrink:0; }
+  .tpl-more-btn {
+    padding:5px 10px; border:1px solid var(--gray-300); border-radius:6px;
+    background:#fff; cursor:pointer; font-size:15px; line-height:1;
+    color:var(--gray-700); transition:background .15s;
+  }
+  .tpl-more-btn:hover { background:var(--accent); }
+  .tpl-more-menu {
+    position:absolute; right:0; bottom:calc(100% + 4px);
+    background:#fff; border:1px solid var(--gray-200);
+    border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.12);
+    min-width:110px; z-index:200; display:none; flex-direction:column; overflow:hidden;
+  }
+  .tpl-more-menu.open { display:flex; }
+  .tpl-more-menu button {
+    padding:9px 14px; background:none; border:none; cursor:pointer;
+    font-family:inherit; font-size:13px; text-align:left; color:var(--gray-900);
+    transition:background .12s; white-space:nowrap;
+  }
+  .tpl-more-menu button:hover { background:var(--accent); }
+  .tpl-more-menu button.danger { color:var(--danger); }
+  .tpl-more-menu button.danger:hover { background:#fff5f5; }
   .tpl-sub-input-row {
     display:flex; align-items:center; gap:6px; margin-bottom:6px;
     border-top:2px solid transparent; border-bottom:2px solid transparent;
@@ -4184,13 +4207,36 @@ function renderTemplates() {
       <div class="tpl-subtasks">${subList}</div>
       <div class="tpl-card-actions">
         <button class="btn btn-success btn-sm" onclick="openCreateFromTemplate('${tpl.id}')">⚡ 업무 생성</button>
-        <button class="btn btn-outline btn-sm" onclick="openTemplateModal('${tpl.id}')">✏️ 편집</button>
-        <button class="btn btn-outline btn-sm" onclick="duplicateTemplate('${tpl.id}')" title="같은 내용으로 복제">📋 복제</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${tpl.id}')">🗑️</button>
+        <div class="tpl-more-wrap">
+          <button class="tpl-more-btn" onclick="toggleTplMore(this)" title="더 보기">⋯</button>
+          <div class="tpl-more-menu">
+            <button onclick="closeTplMore(this);openTemplateModal('${tpl.id}')">✏️ 편집</button>
+            <button onclick="closeTplMore(this);duplicateTemplate('${tpl.id}')">📋 복제</button>
+            <button class="danger" onclick="closeTplMore(this);deleteTemplate('${tpl.id}')">🗑️ 삭제</button>
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('');
 }
+
+function toggleTplMore(btn) {
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.classList.contains('open');
+  // 다른 열린 메뉴 모두 닫기
+  document.querySelectorAll('.tpl-more-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+function closeTplMore(el) {
+  const menu = el.closest('.tpl-more-menu');
+  if (menu) menu.classList.remove('open');
+}
+// 카드 밖 클릭 시 드롭다운 닫기
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.tpl-more-wrap')) {
+    document.querySelectorAll('.tpl-more-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
 
 function setTplMonth(el, month) {
   tplMonthFilter = month;
