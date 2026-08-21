@@ -997,19 +997,20 @@
   /* ── 반복 업무 페이지 ── */
   .repeat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 
-  /* ── 주간업무보고 ── */
+  /* ── 주간업무보고 툴바 ── */
   .weekly-toolbar {
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-    background: #fff; padding: 14px 20px; border-radius: 10px;
-    box-shadow: 0 1px 6px rgba(90,127,166,.10); margin-bottom: 20px;
+    background: #fff; padding: 12px 18px; border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(90,127,166,.10); margin-bottom: 16px;
   }
   .weekly-week-label {
-    font-size: 15px; font-weight: 700; color: var(--primary);
-    min-width: 240px; text-align: center; padding: 0 8px;
+    font-size: 14px; font-weight: 700; color: var(--primary);
+    min-width: 220px; text-align: center; padding: 0 6px;
   }
   .weekly-nav-btn {
-    padding: 6px 14px; border: 1px solid var(--gray-300); background: #fff;
+    padding: 6px 13px; border: 1px solid var(--gray-300); background: #fff;
     border-radius: 6px; cursor: pointer; font-size: 13px; transition: background .15s;
+    white-space: nowrap;
   }
   .weekly-nav-btn:hover { background: var(--accent); }
   .weekly-nav-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
@@ -1020,67 +1021,84 @@
     font-size: 13px; background: #fff; cursor: pointer;
   }
   .weekly-date-range input[type=date]:focus { outline: none; border-color: var(--primary); }
-  .weekly-divider { width: 1px; height: 24px; background: var(--gray-300); margin: 0 4px; }
-  .weekly-preview { display: flex; flex-direction: column; gap: 16px; }
-  .weekly-report-header {
-    background: linear-gradient(135deg, #4c6f98, #3d5e85);
-    color: #fff; padding: 24px 28px; border-radius: 10px;
-    display: flex; justify-content: space-between; align-items: flex-end;
+  .weekly-divider { width: 1px; height: 22px; background: var(--gray-300); margin: 0 2px; }
+  .weekly-preview { display: flex; flex-direction: column; gap: 12px; }
+
+  /* 보고서 헤더 카드 */
+  .wr-header {
+    background: #fff; border-radius: 10px; padding: 18px 22px;
+    box-shadow: 0 1px 6px rgba(90,127,166,.10);
+    border-left: 4px solid var(--primary);
+    display: flex; justify-content: space-between; align-items: center; gap: 20px;
   }
-  .weekly-report-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-  .weekly-report-meta { font-size: 13px; opacity: .85; }
-  .weekly-report-date { font-size: 12px; opacity: .7; text-align: right; }
-  .weekly-member-card {
+  .wr-header-title { font-size: 16px; font-weight: 700; color: var(--gray-900); margin-bottom: 3px; }
+  .wr-header-period { font-size: 13px; color: var(--primary); font-weight: 600; }
+  .wr-header-date { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+  .wr-header-stats { display: flex; gap: 20px; text-align: center; flex-shrink: 0; }
+  .wr-hstat-n { font-size: 22px; font-weight: 700; line-height: 1.1; }
+  .wr-hstat-n.blue { color: #3b6bc5; }
+  .wr-hstat-n.green { color: #3a7d53; }
+  .wr-hstat-l { font-size: 10px; color: var(--gray-500); margin-top: 2px; }
+
+  /* 구성원 카드 */
+  .wr-card {
     background: #fff; border-radius: 10px;
-    box-shadow: 0 1px 6px rgba(90,127,166,.10); overflow: hidden;
+    box-shadow: 0 1px 6px rgba(90,127,166,.08); overflow: hidden;
   }
-  .weekly-member-header {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 20px; border-bottom: 1px solid var(--gray-200);
+  .wr-card-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; border-bottom: 1px solid var(--gray-100);
   }
-  .weekly-member-avatar {
-    width: 38px; height: 38px; border-radius: 50%;
+  .wr-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;
+    font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
   }
-  .weekly-member-name { font-size: 15px; font-weight: 700; }
-  .weekly-member-role { font-size: 12px; color: var(--gray-500); margin-top: 1px; }
-  .weekly-member-stats { margin-left: auto; display: flex; gap: 12px; }
-  .weekly-stat-chip {
-    padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;
+  .wr-member-name { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+  .wr-member-role { font-size: 11px; color: var(--gray-500); margin-top: 1px; }
+  .wr-chips { display: flex; gap: 5px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .wr-chip { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .wr-chip.c-on  { background: #dde8fa; color: #2c57b8; }
+  .wr-chip.c-dn  { background: #d6f0e2; color: #246b40; }
+  .wr-chip.c-wt  { background: #fdf0d0; color: #8a6500; }
+  .wr-chip.c-due { background: #fde4de; color: #a83520; }
+
+  /* 업무 그룹 */
+  .wr-body { padding: 4px 18px 14px; }
+  .wr-group { margin-top: 12px; }
+  .wr-group-label {
+    font-size: 10px; font-weight: 700; color: var(--gray-500);
+    letter-spacing: .5px; padding-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
   }
-  .weekly-stat-chip.ongoing { background: #e8f0fd; color: #3b6bc5; }
-  .weekly-stat-chip.done    { background: #e6f4ec; color: #3a7d53; }
-  .weekly-stat-chip.overdue { background: #fdecea; color: #b94c3c; }
-  .weekly-stat-chip.waiting { background: #fef8e7; color: #9a7b1a; }
-  .weekly-section { padding: 14px 20px; }
-  .weekly-section + .weekly-section { border-top: 1px solid var(--gray-100); }
-  .weekly-section-title {
-    font-size: 12px; font-weight: 700; color: var(--gray-500);
-    text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px;
+  .wr-group-label::after { content: ''; flex: 1; height: 1px; background: var(--gray-200); }
+
+  /* 업무 행 */
+  .wr-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--gray-100);
   }
-  .weekly-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .weekly-table th {
-    background: var(--gray-100); padding: 7px 10px; text-align: left;
-    font-weight: 600; color: var(--gray-700); font-size: 12px;
-    border-bottom: 1px solid var(--gray-300);
+  .wr-row:last-child { border-bottom: none; }
+  .wr-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 1px; }
+  .wr-dot-b { background: #3b6bc5; }
+  .wr-dot-g { background: #3a7d53; }
+  .wr-dot-y { background: #d4a017; }
+  .wr-dot-r { background: #c0614e; }
+  .wr-name { font-size: 13px; color: var(--gray-900); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wr-meta { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+  .wr-cat { font-size: 10px; background: var(--accent); color: var(--primary); padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
+  .wr-due { font-size: 11px; color: var(--gray-500); white-space: nowrap; }
+  .wr-due.od { color: var(--danger); font-weight: 700; }
+  .wr-pri { font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .wr-pri-h { color: var(--danger); }
+  .wr-pri-m { color: var(--primary); }
+  .wr-pri-l { color: var(--gray-500); }
+  .wr-sub { font-size: 10px; color: var(--gray-500); background: var(--gray-100); padding: 1px 5px; border-radius: 5px; white-space: nowrap; }
+  .wr-empty { padding: 16px 0; text-align: center; color: var(--gray-300); font-size: 12px; }
+  .wr-no-data {
+    text-align: center; padding: 50px 20px; color: var(--gray-500);
+    background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(90,127,166,.08);
   }
-  .weekly-table td {
-    padding: 7px 10px; border-bottom: 1px solid var(--gray-200); vertical-align: middle;
-  }
-  .weekly-table tr:last-child td { border-bottom: none; }
-  .weekly-table tr:hover td { background: var(--gray-100); }
-  .weekly-empty-member {
-    padding: 20px; text-align: center; color: var(--gray-500); font-size: 13px;
-  }
-  .weekly-no-report {
-    text-align: center; padding: 60px 20px; color: var(--gray-500);
-    background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(90,127,166,.10);
-  }
-  .weekly-no-report .icon { font-size: 48px; margin-bottom: 14px; }
-  .badge-status-진행중 { background: #e8f0fd; color: #3b6bc5; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .badge-status-대기   { background: #fef8e7; color: #9a7b1a; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .badge-status-완료   { background: #e6f4ec; color: #3a7d53; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   .repeat-card {
     background: #fff; border: 1px solid var(--gray-200); border-radius: 10px;
     padding: 16px; position: relative; transition: box-shadow .15s;
@@ -5464,9 +5482,8 @@ function addMonths(ym, n) {
 //  앱 잠금 / 조회 전용 모드
 // ══════════════════════════════════════════
 // ↓↓ 기본 암호 설정 — 이 값을 원하는 암호로 변경하세요 ↓↓
-const DEFAULT_EDIT_PASSWORD = 'e5242';   // ← 편집 암호 (추가·수정·삭제 가능)
-const DEFAULT_VIEW_PASSWORD = '5245v
-';   // ← 조회 암호 (열람만 가능)
+const DEFAULT_EDIT_PASSWORD = '편집암호1234';   // ← 편집 암호 (추가·수정·삭제 가능)
+const DEFAULT_VIEW_PASSWORD = '조회암호1234';   // ← 조회 암호 (열람만 가능)
 // ↑↑ 변경 후 저장 — 기존에 다른 암호를 설정한 기기는 설정 탭에서 재설정 필요 ↑↑
 let appPasswords = load('hrm_app_passwords', { edit: DEFAULT_EDIT_PASSWORD, view: DEFAULT_VIEW_PASSWORD });
 let appLockMode  = 'edit'; // 'edit' | 'view' | 'locked'
@@ -6279,65 +6296,58 @@ function _getWeeklyTasksFor(memberId, startStr, endStr) {
   const start = new Date(startStr + 'T00:00:00');
   const endD  = new Date(endStr  + 'T23:59:59');
   const mt = tasks.filter(t => t.member === memberId);
+  const priOrder = {높음:0, 보통:1, 낮음:2};
+  const sort = arr => [...arr].sort((a,b) => {
+    const da = a.due ? new Date(a.due) : new Date('9999');
+    const db = b.due ? new Date(b.due) : new Date('9999');
+    if (da - db !== 0) return da - db;
+    return (priOrder[a.priority]||1) - (priOrder[b.priority]||1);
+  });
 
-  const ongoing = mt.filter(t => t.status === '진행중');
-  const waiting = mt.filter(t => t.status === '대기');
-  // 이번 주 완료: completedAt 또는 updatedAt이 주 범위 내
+  // 진행중 (이번 주 마감 여부 함께 표시용 플래그 추가)
+  const ongoing = sort(mt.filter(t => t.status === '진행중')).map(t => ({
+    ...t,
+    _dueThisWeek: t.due && (() => { const d = new Date(t.due); return !isNaN(d) && d >= start && d <= endD; })()
+  }));
+  // 대기 (우선순위→마감일 순)
+  const waiting = sort(mt.filter(t => t.status === '대기'));
+  // 이번 주 완료 (완료일 최신순)
   const completedThisWeek = mt.filter(t => {
     if (t.status !== '완료') return false;
     const d = new Date(t.completedAt || t.updatedAt);
     return !isNaN(d) && d >= start && d <= endD;
-  });
-  // 이번 주 마감 예정 (완료되지 않은 것)
-  const dueThisWeek = mt.filter(t => {
-    if (t.status === '완료') return false;
-    if (!t.due) return false;
-    const d = new Date(t.due);
-    return !isNaN(d) && d >= start && d <= endD;
-  }).filter(t => !ongoing.find(x=>x.id===t.id) && !waiting.find(x=>x.id===t.id));
+  }).sort((a,b) => new Date(b.completedAt||b.updatedAt||0) - new Date(a.completedAt||a.updatedAt||0));
 
-  return { ongoing, waiting, completedThisWeek, dueThisWeek };
+  return { ongoing, waiting, completedThisWeek };
 }
 
-/** 상태 배지 HTML */
-function _weeklyStatusBadge(status) {
-  return `<span class="badge-status-${status}">${status}</span>`;
+/** 업무 행 HTML (화면 미리보기용) */
+function _wrRow(t, dotClass) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = t.due ? new Date(t.due) : null;
+  const isOd = due && due < today && t.status !== '완료';
+  const dueStr = due ? (due.getMonth()+1) + '.' + String(due.getDate()).padStart(2,'0') : '';
+  const dueCls = isOd ? 'wr-due od' : 'wr-due';
+  const dueLabel = dueStr ? `<span class="${dueCls}">${isOd ? '⚠ ' : '~ '}${dueStr}</span>` : '';
+  const catLabel = t.category ? `<span class="wr-cat">${t.category}</span>` : '';
+  const priCls = {높음:'wr-pri wr-pri-h',보통:'wr-pri wr-pri-m',낮음:'wr-pri wr-pri-l'}[t.priority] || 'wr-pri wr-pri-l';
+  const priLabel = t.priority && t.priority !== '보통' ? `<span class="${priCls}">${t.priority}</span>` : '';
+  const sub = t.subtasks && t.subtasks.length
+    ? `<span class="wr-sub">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
+  const dueDotClass = t._dueThisWeek ? 'wr-dot wr-dot-r' : dotClass;
+  return `<div class="wr-row">
+    <div class="${dueDotClass}"></div>
+    <div class="wr-name" title="${t.name}">${t.name}</div>
+    <div class="wr-meta">${catLabel}${dueLabel}${priLabel}${sub}</div>
+  </div>`;
 }
 
-/** 우선순위 배지 */
-function _weeklyPriBadge(pri) {
-  const c = {높음:'var(--danger)',보통:'var(--primary)',낮음:'var(--gray-500)'}[pri] || 'var(--gray-500)';
-  return `<span style="font-size:11px;color:${c};font-weight:700;">${pri||'—'}</span>`;
-}
-
-/** 업무 행 HTML */
-function _weeklyTaskRow(t) {
-  const due = t.due ? t.due : '—';
-  const cat = t.category ? `<span style="font-size:11px;background:var(--accent);color:var(--primary);border-radius:8px;padding:1px 7px;">${t.category}</span>` : '—';
-  const sub = t.subtasks ? `${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}` : '—';
-  return `<tr>
-    <td style="max-width:220px;">${t.name}</td>
-    <td>${cat}</td>
-    <td>${_weeklyPriBadge(t.priority)}</td>
-    <td>${_weeklyStatusBadge(t.status)}</td>
-    <td>${due}</td>
-    <td style="font-size:11px;color:var(--gray-500);">${sub}</td>
-    <td style="font-size:11px;color:var(--gray-500);max-width:160px;">${t.note ? t.note.slice(0,40)+(t.note.length>40?'…':'') : ''}</td>
-  </tr>`;
-}
-
-/** 섹션 테이블 HTML (rows 배열) */
-function _weeklySection(title, icon, rows, emptyMsg) {
+/** 그룹 블록 HTML */
+function _wrGroup(label, rows, dotClass) {
   if (!rows.length) return '';
-  const tableRows = rows.map(_weeklyTaskRow).join('');
-  return `<div class="weekly-section">
-    <div class="weekly-section-title">${icon} ${title} (${rows.length}건)</div>
-    <table class="weekly-table">
-      <thead><tr>
-        <th>업무명</th><th>카테고리</th><th>우선순위</th><th>상태</th><th>마감일</th><th>하위업무</th><th>비고</th>
-      </tr></thead>
-      <tbody>${tableRows}</tbody>
-    </table>
+  return `<div class="wr-group">
+    <div class="wr-group-label">${label} <span style="font-weight:400;font-size:10px;">(${rows.length}건)</span></div>
+    ${rows.map(t => _wrRow(t, dotClass)).join('')}
   </div>`;
 }
 
@@ -6345,8 +6355,8 @@ function renderWeeklyReport() {
   const preview = document.getElementById('weekly-preview');
   if (!preview) return;
 
-  const startStr = document.getElementById('weekly-start-input') ? document.getElementById('weekly-start-input').value : '';
-  const endStr   = document.getElementById('weekly-end-input')   ? document.getElementById('weekly-end-input').value   : '';
+  const startStr = (document.getElementById('weekly-start-input') || {}).value || '';
+  const endStr   = (document.getElementById('weekly-end-input')   || {}).value || '';
   if (!startStr || !endStr) { preview.innerHTML = ''; return; }
 
   const startKr = _fmtKr(startStr, true);
@@ -6354,64 +6364,52 @@ function renderWeeklyReport() {
   const today   = _fmtKr(_fmtDateStr(new Date()), false);
 
   // 팀 전체 통계
-  let totalOngoing = 0, totalDone = 0;
-  members.forEach(m => {
-    const r = _getWeeklyTasksFor(m.id, startStr, endStr);
-    totalOngoing += r.ongoing.length;
-    totalDone    += r.completedThisWeek.length;
-  });
+  let totOn = 0, totDn = 0;
+  members.forEach(m => { const r = _getWeeklyTasksFor(m.id, startStr, endStr); totOn += r.ongoing.length; totDn += r.completedThisWeek.length; });
 
   // 보고서 헤더
-  let html = `
-  <div class="weekly-report-header">
+  let html = `<div class="wr-header">
     <div>
-      <div class="weekly-report-title">📊 교원인사팀 주간업무보고</div>
-      <div class="weekly-report-meta">보고기간 · ${startKr} ~ ${endKr}</div>
-      <div style="margin-top:8px;font-size:12px;opacity:.75;">진행 중 ${totalOngoing}건 · 이번 주 완료 ${totalDone}건</div>
+      <div class="wr-header-title">교원인사팀 주간업무보고</div>
+      <div class="wr-header-period">${startKr} ~ ${endKr}</div>
+      <div class="wr-header-date">작성일 · ${today}</div>
     </div>
-    <div class="weekly-report-date">
-      <div style="font-size:13px;font-weight:600;">작성일</div>
-      <div style="font-size:12px;margin-top:2px;">${today}</div>
+    <div class="wr-header-stats">
+      <div><div class="wr-hstat-n blue">${totOn}</div><div class="wr-hstat-l">진행 중</div></div>
+      <div><div class="wr-hstat-n green">${totDn}</div><div class="wr-hstat-l">이번 주 완료</div></div>
     </div>
   </div>`;
 
-  // 구성원별 카드
   if (!members.length) {
-    html += `<div class="weekly-no-report"><div class="icon">👥</div><p>등록된 팀원이 없습니다</p></div>`;
+    html += `<div class="wr-no-data"><p style="font-size:32px;margin-bottom:10px;">👥</p><p>등록된 팀원이 없습니다</p></div>`;
   } else {
     members.forEach((m, mi) => {
       const color = MEMBER_COLORS[mi % MEMBER_COLORS.length];
-      const initials = m.name.slice(0, 2);
       const r = _getWeeklyTasksFor(m.id, startStr, endStr);
-      const totalTasks = r.ongoing.length + r.waiting.length + r.completedThisWeek.length + r.dueThisWeek.length;
+      const allCnt = r.ongoing.length + r.waiting.length + r.completedThisWeek.length;
 
-      const statsHtml = [
-        r.ongoing.length         ? `<span class="weekly-stat-chip ongoing">진행중 ${r.ongoing.length}</span>` : '',
-        r.completedThisWeek.length ? `<span class="weekly-stat-chip done">완료 ${r.completedThisWeek.length}</span>` : '',
-        r.waiting.length         ? `<span class="weekly-stat-chip waiting">대기 ${r.waiting.length}</span>` : '',
-        r.dueThisWeek.length     ? `<span class="weekly-stat-chip overdue">마감예정 ${r.dueThisWeek.length}</span>` : '',
+      const chips = [
+        r.ongoing.length           ? `<span class="wr-chip c-on">진행중 ${r.ongoing.length}</span>` : '',
+        r.completedThisWeek.length ? `<span class="wr-chip c-dn">완료 ${r.completedThisWeek.length}</span>` : '',
+        r.waiting.length           ? `<span class="wr-chip c-wt">대기 ${r.waiting.length}</span>` : '',
       ].filter(Boolean).join('');
 
-      const sectionsHtml =
-        _weeklySection('진행 중인 업무', '🔵', r.ongoing, '진행 중인 업무가 없습니다') +
-        _weeklySection('이번 주 마감 예정', '⚠️', r.dueThisWeek, '') +
-        _weeklySection('대기 중', '🟡', r.waiting, '') +
-        _weeklySection('이번 주 완료', '✅', r.completedThisWeek, '');
+      const body = allCnt === 0
+        ? `<div class="wr-empty">이번 주 해당 업무가 없습니다</div>`
+        : _wrGroup('진행 중', r.ongoing, 'wr-dot wr-dot-b') +
+          _wrGroup('대기', r.waiting, 'wr-dot wr-dot-y') +
+          _wrGroup('이번 주 완료', r.completedThisWeek, 'wr-dot wr-dot-g');
 
-      const emptyHtml = totalTasks === 0
-        ? `<div class="weekly-empty-member">이번 주 해당 업무가 없습니다</div>` : '';
-
-      html += `
-      <div class="weekly-member-card">
-        <div class="weekly-member-header">
-          <div class="weekly-member-avatar" style="background:${color};">${initials}</div>
+      html += `<div class="wr-card" style="border-top:3px solid ${color};">
+        <div class="wr-card-head">
+          <div class="wr-avatar" style="background:${color};">${m.name.slice(0,2)}</div>
           <div>
-            <div class="weekly-member-name">${m.name}</div>
-            <div class="weekly-member-role">${m.role}</div>
+            <div class="wr-member-name">${m.name}</div>
+            <div class="wr-member-role">${m.role}</div>
           </div>
-          <div class="weekly-member-stats">${statsHtml}</div>
+          <div class="wr-chips">${chips}</div>
         </div>
-        ${sectionsHtml || emptyHtml}
+        <div class="wr-body">${body}</div>
       </div>`;
     });
   }
@@ -6421,93 +6419,101 @@ function renderWeeklyReport() {
 
 /** Word(.doc) 형식으로 다운로드 */
 function downloadWeeklyDoc() {
-  const startStr = document.getElementById('weekly-start-input') ? document.getElementById('weekly-start-input').value : '';
-  const endStr   = document.getElementById('weekly-end-input')   ? document.getElementById('weekly-end-input').value   : '';
+  const startStr = (document.getElementById('weekly-start-input') || {}).value || '';
+  const endStr   = (document.getElementById('weekly-end-input')   || {}).value || '';
   if (!startStr || !endStr) { showToast('날짜를 먼저 선택하세요.'); return; }
 
   const startKr = _fmtKr(startStr, true);
   const endKr   = _fmtKr(endStr,   true);
   const today   = _fmtKr(_fmtDateStr(new Date()), false);
+  const priColor = {높음:'#c0614e', 보통:'#4c6f98', 낮음:'#9eaab6'};
+  const now = new Date(); now.setHours(0,0,0,0);
 
-  const priColor = {높음:'#c0614e', 보통:'#4c6f98', 낮음:'#7d8fa0'};
+  // 구성원별 섹션 생성
+  const buildDocRows = (arr, showCompleted) => arr.map(t => {
+    const isOd = t.due && new Date(t.due) < now && !showCompleted;
+    const dueCss = isOd ? 'color:#c0614e;font-weight:bold;' : '';
+    const cat = t.category || '';
+    const due = t.due || '';
+    const sub = t.subtasks && t.subtasks.length ? `${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}` : '';
+    const statusDate = showCompleted
+      ? (t.completedAt || t.updatedAt ? new Date(t.completedAt||t.updatedAt).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) : '') : '';
+    return `<tr>
+      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;">${t.name}</td>
+      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;font-size:9pt;">${cat}</td>
+      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;color:${priColor[t.priority]||'#555'};font-weight:bold;">${t.priority||''}</td>
+      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;${dueCss}">${showCompleted ? statusDate : due}</td>
+      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;color:#9eaab6;">${sub}</td>
+    </tr>`;
+  }).join('');
+
+  const buildDocSection = (label, arr, showCompleted) => {
+    if (!arr.length) return '';
+    const lastColHeader = showCompleted ? '완료일' : '마감일';
+    return `<p style="margin:14px 0 4px;font-size:9.5pt;font-weight:bold;color:#525f6e;">${label} (${arr.length}건)</p>
+    <table style="border-collapse:collapse;width:100%;font-size:9.5pt;border-top:2px solid #4c6f98;">
+      <thead><tr style="background:#f7f9fb;">
+        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:38%;">업무명</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:14%;">카테고리</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:12%;">우선순위</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:14%;">${lastColHeader}</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:12%;">하위업무</th>
+      </tr></thead>
+      <tbody>${buildDocRows(arr, showCompleted)}</tbody>
+    </table>`;
+  };
 
   let membersHtml = '';
   members.forEach((m, mi) => {
     const r = _getWeeklyTasksFor(m.id, startStr, endStr);
-    const totalTasks = r.ongoing.length + r.waiting.length + r.completedThisWeek.length + r.dueThisWeek.length;
-
-    const buildDocRows = (arr) => arr.map(t => {
-      const cat = t.category || '';
-      const sub = t.subtasks ? `${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}` : '';
-      const note = t.note ? t.note.slice(0,60)+(t.note.length>60?'…':'') : '';
-      return `<tr>
-        <td style="padding:5px 8px;border:1px solid #d0d7df;">${t.name}</td>
-        <td style="padding:5px 8px;border:1px solid #d0d7df;text-align:center;">${cat}</td>
-        <td style="padding:5px 8px;border:1px solid #d0d7df;text-align:center;color:${priColor[t.priority]||'#555'};font-weight:bold;">${t.priority||''}</td>
-        <td style="padding:5px 8px;border:1px solid #d0d7df;text-align:center;">${t.status}</td>
-        <td style="padding:5px 8px;border:1px solid #d0d7df;text-align:center;">${t.due||''}</td>
-        <td style="padding:5px 8px;border:1px solid #d0d7df;text-align:center;">${sub}</td>
-        <td style="padding:5px 8px;border:1px solid #d0d7df;">${note}</td>
-      </tr>`;
-    }).join('');
-
-    const buildDocSection = (title, arr) => {
-      if (!arr.length) return '';
-      return `<p style="margin:10px 0 4px;font-size:10pt;font-weight:bold;color:#4c6f98;">${title} (${arr.length}건)</p>
-      <table style="border-collapse:collapse;width:100%;font-size:9.5pt;">
-        <thead><tr style="background:#e8eef5;">
-          <th style="padding:5px 8px;border:1px solid #b0bdd0;width:22%;">업무명</th>
-          <th style="padding:5px 8px;border:1px solid #b0bdd0;width:12%;">카테고리</th>
-          <th style="padding:5px 8px;border:1px solid #b0bdd0;width:9%;">우선순위</th>
-          <th style="padding:5px 8px;border:1px solid #b0bdd0;width:9%;">상태</th>
-          <th style="padding:5px 8px;border:1px solid #b0bdd0;width:11%;">마감일</th>
-          <th style="padding:5px 8px;border:1px solid #b0bdd0;width:9%;">하위업무</th>
-          <th style="padding:5px 8px;border:1px solid #b0bdd0;">비고</th>
-        </tr></thead>
-        <tbody>${buildDocRows(arr)}</tbody>
-      </table>`;
-    };
-
+    const allCnt = r.ongoing.length + r.waiting.length + r.completedThisWeek.length;
     const colorHex = MEMBER_COLORS[mi % MEMBER_COLORS.length];
     membersHtml += `
-    <div style="margin-top:18px;page-break-inside:avoid;">
+    <div style="margin-top:20px;page-break-inside:avoid;">
       <div style="background:${colorHex};color:#fff;padding:8px 14px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:11pt;font-weight:bold;">${m.name} (${m.role})</span>
-        <span style="font-size:9pt;opacity:.9;">진행중 ${r.ongoing.length} · 완료 ${r.completedThisWeek.length} · 대기 ${r.waiting.length}</span>
+        <span style="font-size:11pt;font-weight:bold;">${m.name}&nbsp;<span style="font-size:9pt;opacity:.85;">(${m.role})</span></span>
+        <span style="font-size:9pt;opacity:.9;">진행중 ${r.ongoing.length}건 · 완료 ${r.completedThisWeek.length}건 · 대기 ${r.waiting.length}건</span>
       </div>
-      <div style="border:1px solid #d0d7df;border-top:none;padding:10px 14px;">
-        ${totalTasks === 0
-          ? '<p style="color:#9eaab6;font-size:9.5pt;margin:8px 0;">이번 주 해당 업무가 없습니다.</p>'
-          : buildDocSection('🔵 진행 중인 업무', r.ongoing) +
-            buildDocSection('⚠️ 이번 주 마감 예정', r.dueThisWeek) +
-            buildDocSection('🟡 대기 중', r.waiting) +
-            buildDocSection('✅ 이번 주 완료', r.completedThisWeek)
+      <div style="border:1px solid #dde2ea;border-top:none;padding:8px 14px 12px;">
+        ${allCnt === 0
+          ? '<p style="color:#c0c8d4;font-size:9.5pt;margin:10px 0;text-align:center;">이번 주 해당 업무가 없습니다.</p>'
+          : buildDocSection('▷ 진행 중', r.ongoing, false) +
+            buildDocSection('▷ 대기', r.waiting, false) +
+            buildDocSection('▷ 이번 주 완료', r.completedThisWeek, true)
         }
       </div>
     </div>`;
   });
+
+  const totOn = members.reduce((s,m) => s + _getWeeklyTasksFor(m.id,startStr,endStr).ongoing.length, 0);
+  const totDn = members.reduce((s,m) => s + _getWeeklyTasksFor(m.id,startStr,endStr).completedThisWeek.length, 0);
 
   const docHtml = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
       xmlns="http://www.w3.org/TR/REC-html40">
 <head>
-<meta charset="UTF-8">
-<title>주간업무보고</title>
+<meta charset="UTF-8"><title>교원인사팀 주간업무보고</title>
 <style>
-  @page { size: A4; margin: 2cm; }
-  body { font-family: '맑은 고딕', '나눔고딕', sans-serif; font-size: 10pt; color: #222; }
-  h1 { font-size: 16pt; color: #4c6f98; margin: 0 0 4px; }
-  .meta { font-size: 9.5pt; color: #555; margin-bottom: 2px; }
+  @page { size:A4; margin:2.2cm 2cm; }
+  body { font-family:'맑은 고딕','나눔고딕',sans-serif; font-size:10pt; color:#222; margin:0; }
 </style>
 <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
 </head>
 <body>
-  <div style="background:linear-gradient(90deg,#4c6f98,#3d5e85);color:#fff;padding:16px 20px;border-radius:4px;margin-bottom:16px;">
-    <h1 style="color:#fff;font-size:15pt;margin:0 0 6px;">📊 교원인사팀 주간업무보고</h1>
-    <p class="meta" style="color:rgba(255,255,255,.85);margin:2px 0;">보고기간 · ${startKr} ~ ${endKr}</p>
-    <p class="meta" style="color:rgba(255,255,255,.75);margin:2px 0;">작성일 · ${today}</p>
+  <!-- 보고서 헤더 -->
+  <div style="border-left:4px solid #4c6f98;padding:10px 0 10px 16px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <div style="font-size:14pt;font-weight:bold;color:#2c3440;margin-bottom:4px;">교원인사팀 주간업무보고</div>
+      <div style="font-size:10pt;color:#4c6f98;font-weight:600;margin-bottom:2px;">보고기간 · ${startKr} ~ ${endKr}</div>
+      <div style="font-size:9pt;color:#9eaab6;">작성일 · ${today}</div>
+    </div>
+    <div style="text-align:center;display:flex;gap:24px;padding-top:4px;">
+      <div><div style="font-size:18pt;font-weight:bold;color:#3b6bc5;line-height:1.1;">${totOn}</div><div style="font-size:8.5pt;color:#9eaab6;">진행 중</div></div>
+      <div><div style="font-size:18pt;font-weight:bold;color:#3a7d53;line-height:1.1;">${totDn}</div><div style="font-size:8.5pt;color:#9eaab6;">이번 주 완료</div></div>
+    </div>
   </div>
+  <hr style="border:none;border-top:1px solid #e5e9ee;margin:10px 0 0;">
   ${membersHtml}
 </body>
 </html>`;
@@ -6515,10 +6521,8 @@ function downloadWeeklyDoc() {
   const blob = new Blob(['﻿', docHtml], { type: 'application/msword' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url;
-  a.download = `주간업무보고_${startStr}_${endStr}.doc`;
-  document.body.appendChild(a);
-  a.click();
+  a.href = url; a.download = `주간업무보고_${startStr}_${endStr}.doc`;
+  document.body.appendChild(a); a.click();
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
   showToast('Word 파일이 다운로드됩니다.');
 }
