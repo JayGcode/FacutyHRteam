@@ -1094,6 +1094,13 @@
   .wr-pri-m { color: var(--primary); }
   .wr-pri-l { color: var(--gray-500); }
   .wr-sub { font-size: 10px; color: var(--gray-500); background: var(--gray-100); padding: 1px 5px; border-radius: 5px; white-space: nowrap; }
+  .wr-cat-hd {
+    font-size: 10px; font-weight: 600; color: var(--primary);
+    padding: 5px 0 2px 10px; margin-top: 6px;
+    border-left: 2px solid var(--accent);
+    letter-spacing: .2px;
+  }
+  .wr-cat-hd:first-child { margin-top: 2px; }
   .wr-empty { padding: 16px 0; text-align: center; color: var(--gray-300); font-size: 12px; }
   .wr-no-data {
     text-align: center; padding: 50px 20px; color: var(--gray-500);
@@ -1235,12 +1242,12 @@ body.view-only #main { padding-top:30px; }
     <a onclick="showPage('done')"><span class="icon">✅</span> 완료 업무</a>
     <a onclick="showPage('templates')"><span class="icon">📋</span> 템플릿(연간플랜)</a>
     <a onclick="showPage('repeat')"><span class="icon">🔁</span> 반복 업무</a>
-    <a onclick="showPage('tasks')"><span class="icon">📝</span> 업무 목록</a>
-    <a onclick="showPage('calendar')"><span class="icon">📅</span> 업무 캘린더</a>
-    <a onclick="showPage('handover')"><span class="icon">🔄</span> 업무 인수인계</a>
     <a onclick="showPage('weekly')"><span class="icon">📊</span> 주간업무보고</a>
     <a onclick="showPage('settings')"><span class="icon">⚙️</span> 설정 / 공유</a>
     <a onclick="showPage('trash')" id="nav-trash"><span class="icon">🗑️</span> 휴지통</a>
+    <a onclick="showPage('tasks')"><span class="icon">📝</span> 업무 목록</a>
+    <a onclick="showPage('calendar')"><span class="icon">📅</span> 업무 캘린더</a>
+    <a onclick="showPage('handover')"><span class="icon">🔄</span> 업무 인수인계</a>
   </nav>
   <div class="version">v1.0 · 교원인사팀 전용</div>
 </div>
@@ -5694,9 +5701,17 @@ function renderRepeat() {
       repeatCatList.map(c => `<option value="${c}" ${repeatCatFilter === c ? 'selected' : ''}>${c}</option>`).join('');
   }
 
-  const filtered = repeatCatFilter
+  const filtered = (repeatCatFilter
     ? repeatTasks.filter(r => r.category === repeatCatFilter)
-    : repeatTasks;
+    : repeatTasks
+  ).slice().sort((a, b) => {
+    const ai = categories.indexOf(a.category || '');
+    const bi = categories.indexOf(b.category || '');
+    const catA = ai === -1 ? categories.length : ai;
+    const catB = bi === -1 ? categories.length : bi;
+    if (catA !== catB) return catA - catB;
+    return (a.title || '').localeCompare(b.title || '', 'ko');
+  });
 
   if (!filtered.length) {
     grid.innerHTML = '';
@@ -6346,25 +6361,39 @@ function _wrRow(t, dotClass) {
   const dueStr = due ? (due.getMonth()+1) + '.' + String(due.getDate()).padStart(2,'0') : '';
   const dueCls = isOd ? 'wr-due od' : 'wr-due';
   const dueLabel = dueStr ? `<span class="${dueCls}">${isOd ? '⚠ ' : '~ '}${dueStr}</span>` : '';
-  const catLabel = t.category ? `<span class="wr-cat">${t.category}</span>` : '';
   const priCls = {높음:'wr-pri wr-pri-h',보통:'wr-pri wr-pri-m',낮음:'wr-pri wr-pri-l'}[t.priority] || 'wr-pri wr-pri-l';
   const priLabel = t.priority && t.priority !== '보통' ? `<span class="${priCls}">${t.priority}</span>` : '';
-  const sub = t.subtasks && t.subtasks.length
-    ? `<span class="wr-sub">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
   const dueDotClass = t._dueThisWeek ? 'wr-dot wr-dot-r' : dotClass;
   return `<div class="wr-row">
     <div class="${dueDotClass}"></div>
     <div class="wr-name" title="${t.name}">${t.name}</div>
-    <div class="wr-meta">${catLabel}${dueLabel}${priLabel}${sub}</div>
+    <div class="wr-meta">${dueLabel}${priLabel}</div>
   </div>`;
 }
 
-/** 그룹 블록 HTML */
+/** 그룹 블록 HTML — 카테고리별 소그룹으로 묶어서 표시 */
 function _wrGroup(label, rows, dotClass) {
   if (!rows.length) return '';
+  // 카테고리별 소그룹 (설정 순서 유지)
+  const grouped = {};
+  rows.forEach(t => {
+    const cat = t.category || '__none__';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(t);
+  });
+  const sortedCats = Object.keys(grouped).sort((a, b) => {
+    const ai = categories.indexOf(a); const bi = categories.indexOf(b);
+    const va = a === '__none__' ? 9999 : (ai === -1 ? 9998 : ai);
+    const vb = b === '__none__' ? 9999 : (bi === -1 ? 9998 : bi);
+    return va - vb;
+  });
+  const catHtml = sortedCats.map(cat => {
+    const hd = cat !== '__none__' ? `<div class="wr-cat-hd">${cat}</div>` : '';
+    return hd + grouped[cat].map(t => _wrRow(t, dotClass)).join('');
+  }).join('');
   return `<div class="wr-group">
     <div class="wr-group-label">${label} <span style="font-weight:400;font-size:10px;">(${rows.length}건)</span></div>
-    ${rows.map(t => _wrRow(t, dotClass)).join('')}
+    ${catHtml}
   </div>`;
 }
 
@@ -6447,38 +6476,55 @@ function downloadWeeklyDoc() {
   const now = new Date(); now.setHours(0,0,0,0);
 
   // 구성원별 섹션 생성
-  const buildDocRows = (arr, showCompleted) => arr.map(t => {
-    const isOd = t.due && new Date(t.due) < now && !showCompleted;
+  // Word 문서용: 카테고리별 소그룹으로 묶어 출력 (하위업무 열 제거)
+  const buildDocRow = (t, showCompleted, isOd) => {
     const dueCss = isOd ? 'color:#c0614e;font-weight:bold;' : '';
-    const cat = t.category || '';
     const due = t.due || '';
-    const sub = t.subtasks && t.subtasks.length ? `${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}` : '';
     const statusDate = showCompleted
       ? (t.completedAt || t.updatedAt ? new Date(t.completedAt||t.updatedAt).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) : '') : '';
     return `<tr>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;">${t.name}</td>
-      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;font-size:9pt;">${cat}</td>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;color:${priColor[t.priority]||'#555'};font-weight:bold;">${t.priority||''}</td>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;${dueCss}">${showCompleted ? statusDate : due}</td>
-      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;color:#9eaab6;">${sub}</td>
     </tr>`;
-  }).join('');
+  };
 
   const buildDocSection = (label, arr, showCompleted) => {
     if (!arr.length) return '';
     const lastColHeader = showCompleted ? '완료일' : '마감일';
+    // 카테고리별 소그룹 정렬
+    const grouped = {};
+    arr.forEach(t => {
+      const cat = t.category || '__none__';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(t);
+    });
+    const sortedCats = Object.keys(grouped).sort((a, b) => {
+      const ai = categories.indexOf(a); const bi = categories.indexOf(b);
+      const va = a === '__none__' ? 9999 : (ai === -1 ? 9998 : ai);
+      const vb = b === '__none__' ? 9999 : (bi === -1 ? 9998 : bi);
+      return va - vb;
+    });
+    let tbodyHtml = '';
+    sortedCats.forEach(cat => {
+      if (cat !== '__none__') {
+        tbodyHtml += `<tr><td colspan="3" style="padding:4px 10px 2px;font-size:8.5pt;font-weight:600;color:#3b6bc5;border-bottom:1px solid #d0d8e8;background:#f3f7fd;">${cat}</td></tr>`;
+      }
+      grouped[cat].forEach(t => {
+        const isOd = t.due && new Date(t.due) < now && !showCompleted;
+        tbodyHtml += buildDocRow(t, showCompleted, isOd);
+      });
+    });
     return `<p style="margin:14px 0 4px;font-size:9.5pt;font-weight:bold;color:#525f6e;">${label} (${arr.length}건)</p>
     <table style="border-collapse:collapse;width:100%;font-size:9.5pt;border-top:2px solid #4c6f98;">
       <thead><tr style="background:#f7f9fb;">
-        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:38%;">업무명</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:14%;">카테고리</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:12%;">우선순위</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:14%;">${lastColHeader}</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:12%;">하위업무</th>
+        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:55%;">업무명</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:15%;">우선순위</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:18%;">${lastColHeader}</th>
       </tr></thead>
-      <tbody>${buildDocRows(arr, showCompleted)}</tbody>
+      <tbody>${tbodyHtml}</tbody>
     </table>`;
-  };
+  }
 
   let membersHtml = '';
   members.forEach((m, mi) => {
