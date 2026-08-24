@@ -5210,6 +5210,7 @@ async function syncFromDrive(isInitial = false) {
     save('hrm_drive_config', driveConfig);
     populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
     renderMemberSyncTable();
+    renderTemplates(); renderRepeat();
     if (status) status.textContent = '✅ 불러오기 완료: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
     _initialLoadFailed = false;
   } catch(err) {
