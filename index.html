@@ -2179,6 +2179,48 @@ body.view-only #main { padding-top:30px; }
   </div>
 </div>
 
+<!-- ───────────── 백업 선택 복구 모달 ───────────── -->
+<div class="modal-overlay" id="restore-select-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3>선택 복구</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('restore-select-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="restore-backup-name" style="font-size:12px;color:#9eaab6;margin-bottom:12px;"></div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">복구할 항목을 선택하세요</div>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="restore-checkboxes">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rc-templates" value="templates" checked> 📋 템플릿 (연간플랜)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rc-repeatTasks" value="repeatTasks"> 🔁 반복 업무
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rc-tasks" value="tasks"> 📝 업무 목록
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rc-members" value="members"> 👥 팀원 정보
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rc-categories" value="categories"> 🗂️ 카테고리
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rc-handovers" value="handovers"> 🔄 인수인계
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="rc-memos" value="memos"> 📌 메모
+        </label>
+      </div>
+      <div style="font-size:11px;color:#e8984b;margin-top:12px;">⚠ 선택한 항목만 백업 시점으로 덮어씁니다. 나머지는 현재 상태를 유지합니다.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('restore-select-modal')">취소</button>
+      <button class="btn btn-primary" onclick="doSelectiveRestore()">↩️ 선택 항목 복구</button>
+    </div>
+  </div>
+</div>
+
 <!-- ───────────── 업무 상세 보기 모달 ───────────── -->
 <div class="modal-overlay" id="detail-modal">
   <div class="modal">
@@ -6098,7 +6140,7 @@ async function renderBackupList() {
           return `<div class="backup-row">
             <span class="bk-name">📦 ${dtStr}</span>
             <span class="bk-date">${b.name}</span>
-            <button class="btn btn-outline btn-xs" onclick="restoreFromBackup('${b.id}','${b.name}')">↩️ 복구</button>
+            <button class="btn btn-outline btn-xs" onclick="showRestoreOptions('${b.id}','${b.name}')">↩️ 복구</button>
           </div>`;
         }).join('')}
       </div>`;
@@ -6107,31 +6149,54 @@ async function renderBackupList() {
   }
 }
 
-// 백업에서 복구
-async function restoreFromBackup(fileId, fileName) {
-  if (!confirm(`"${fileName}" 백업으로 복구하시겠습니까?\n\n⚠️ 현재 데이터가 백업 시점으로 되돌아갑니다.\n복구 전 현재 데이터를 백업해 두려면 취소 후 "지금 백업"을 먼저 누르세요.`)) return;
+// 백업 선택 복구 모달 열기
+let _restoreFileId = null, _restoreFileName = null;
+function showRestoreOptions(fileId, fileName) {
+  _restoreFileId   = fileId;
+  _restoreFileName = fileName;
+  const nameEl = document.getElementById('restore-backup-name');
+  if (nameEl) nameEl.textContent = '백업 파일: ' + fileName;
+  // 기본 체크 상태 초기화 (템플릿만 기본 체크)
+  ['templates','repeatTasks','tasks','members','categories','handovers','memos'].forEach(k => {
+    const el = document.getElementById('rc-' + k);
+    if (el) el.checked = (k === 'templates');
+  });
+  document.getElementById('restore-select-modal').classList.add('active');
+}
+
+// 선택 항목만 복구
+async function doSelectiveRestore() {
+  if (!_restoreFileId) return;
+  const selected = ['templates','repeatTasks','tasks','members','categories','handovers','memos']
+    .filter(k => { const el = document.getElementById('rc-' + k); return el && el.checked; });
+  if (!selected.length) { alert('복구할 항목을 하나 이상 선택하세요.'); return; }
+
+  const labels = { templates:'템플릿', repeatTasks:'반복업무', tasks:'업무목록',
+                   members:'팀원정보', categories:'카테고리', handovers:'인수인계', memos:'메모' };
+  const selectedNames = selected.map(k => labels[k]).join(', ');
+  if (!confirm(`선택한 항목(${selectedNames})을 백업 시점으로 복구하시겠습니까?\n\n나머지 데이터는 현재 상태를 유지합니다.`)) return;
+
+  closeModal('restore-select-modal');
   const wrap = document.getElementById('backup-list-wrap');
   if (wrap) wrap.innerHTML = '<div class="backup-empty">⏳ 복구 중...</div>';
   try {
-    const payload = { action: 'getBackup', fileId };
+    const payload = { action: 'getBackup', fileId: _restoreFileId };
     const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    // 데이터 복원
     _driveLoading = true;
-    if (data.tasks)         { tasks         = data.tasks;         save('hrm_tasks',         tasks); }
-    if (data.members)       { members       = data.members;       save('hrm_members',       members); }
-    if (data.categories)    { categories    = data.categories;    save('hrm_categories',    categories); }
-    if (data.handovers)     { handovers     = data.handovers;     save('hrm_handovers',     handovers); }
-    if (data.templates)     { templates     = data.templates;     save('hrm_templates',     templates); }
-    if (data.memos)         { memos         = data.memos;         save('hrm_memos',         memos); }
-    if (data.trash)         { trash         = data.trash;         save('hrm_trash',         trash); }
-    if (data.personalOrder) { personalOrder = data.personalOrder; save('hrm_personal_order', personalOrder); }
-    if (data.repeatTasks)   { repeatTasks   = data.repeatTasks;   save('hrm_repeat_tasks',  repeatTasks); }
+    if (selected.includes('tasks')      && data.tasks)         { tasks         = data.tasks;         save('hrm_tasks',          tasks); }
+    if (selected.includes('members')    && data.members)       { members       = data.members;       save('hrm_members',        members); }
+    if (selected.includes('categories') && data.categories)    { categories    = data.categories;    save('hrm_categories',     categories); }
+    if (selected.includes('handovers')  && data.handovers)     { handovers     = data.handovers;     save('hrm_handovers',      handovers); }
+    if (selected.includes('templates')  && data.templates)     { templates     = data.templates;     save('hrm_templates',      templates); }
+    if (selected.includes('memos')      && data.memos)         { memos         = data.memos;         save('hrm_memos',          memos); }
+    if (selected.includes('repeatTasks')&& data.repeatTasks)   { repeatTasks   = data.repeatTasks;   save('hrm_repeat_tasks',   repeatTasks); }
     _driveLoading = false;
-    alert('복구가 완료되었습니다.\n백업 시점: ' + (data.backedUpAt ? new Date(data.backedUpAt).toLocaleString('ko-KR') : fileName));
+    alert(`복구 완료 (${selectedNames})\n백업 시점: ` + (data.backedUpAt ? new Date(data.backedUpAt).toLocaleString('ko-KR') : _restoreFileName));
     populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
+    renderTemplates(); renderRepeat();
     renderBackupList();
   } catch(err) {
     _driveLoading = false;
