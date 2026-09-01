@@ -6728,15 +6728,50 @@ if (driveConfig.enabled && driveConfig.url) {
   checkAndAutoBackup();
 }
 
-// 창 닫힐 때 반복업무 강제 저장 (sendBeacon — 비동기 fetch보다 신뢰성 높음)
-window.addEventListener('beforeunload', () => {
+// ── 긴급 저장 (공유 데이터 + 직원별 업무 데이터 모두 sendBeacon) ──
+// sendBeacon은 페이지 언로드 중에도 전송 보장 (fetch보다 신뢰성 높음)
+let _lastEmergencySave = 0;
+function _emergencySave() {
   if (!driveConfig.enabled || !driveConfig.url) return;
-  const payload = JSON.stringify({
+  const now = Date.now();
+  if (now - _lastEmergencySave < 2000) return; // 2초 내 중복 실행 방지
+  _lastEmergencySave = now;
+  const savedAt = new Date().toISOString();
+
+  // 1) 공유 데이터 (templates, repeatTasks, members, categories, handovers, trash)
+  const sharedPayload = JSON.stringify({
     action: 'saveShared',
-    data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
+    data: { members, categories, handovers, templates, trash, repeatTasks, savedAt }
   });
-  try { navigator.sendBeacon(driveConfig.url, new Blob([payload], { type: 'application/json' })); } catch(e) {}
+  try { navigator.sendBeacon(driveConfig.url, new Blob([sharedPayload], { type: 'application/json' })); } catch(e) {}
+
+  // 2) 직원별 업무카드 데이터 (PC/iPad 모두 커버)
+  members.forEach(m => {
+    const memberTasks = tasks.filter(t => t.member === m.id);
+    const memberPayload = JSON.stringify({
+      action: 'saveMember',
+      memberId: m.id,
+      data: {
+        tasks: memberTasks,
+        memos: { [m.id]: memos[m.id] || [] },
+        personalOrder: { [m.id]: personalOrder[m.id] || [] },
+        savedAt
+      }
+    });
+    try { navigator.sendBeacon(driveConfig.url, new Blob([memberPayload], { type: 'application/json' })); } catch(e) {}
+  });
+}
+
+// PC Chrome: 창/탭 닫기 시
+window.addEventListener('beforeunload', _emergencySave);
+
+// iOS Safari: 앱 전환 또는 다른 탭으로 이동 시 (beforeunload 대신 이 이벤트 사용)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') _emergencySave();
 });
+
+// iOS Safari 추가 대응: BFCache(뒤로가기 캐시) 포함 페이지 이탈 시
+window.addEventListener('pagehide', _emergencySave);
 </script>
 <!-- 잠금 오버레이/배너는 스크립트 내에서 동적으로 생성됩니다 -->
 </body>
