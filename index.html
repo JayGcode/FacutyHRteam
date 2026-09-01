@@ -5708,8 +5708,9 @@ function checkAndCreateRepeatTasks() {
         rpt.history.push({ taskId: newTaskId, createdAt: now, completedAt: null });
         changed = true;
       }
-      // 다음 생성 월 업데이트
+      // 다음 생성 월 업데이트 + updatedAt 갱신 (Drive 병합 시 로컬 데이터 보호)
       rpt.nextDate = addMonths(rpt.nextDate, rpt.interval || 1);
+      rpt.updatedAt = new Date().toISOString();
       changed = true;
     }
   });
@@ -6665,7 +6666,7 @@ if (window.innerWidth > 768 && localStorage.getItem('hrm_sidebar_hidden') === '1
 }
 showPage('personal');
 updateTrashBadge();
-checkAndCreateRepeatTasks();
+// checkAndCreateRepeatTasks는 Drive 연동 여부에 따라 아래에서 한 번만 호출
 
 // ── 드래그 상태 안전망: 드래그가 비정상 종료되면 pointer-events:none이 남아 버튼이 먹통이 됨 ──
 (function() {
@@ -6722,7 +6723,8 @@ if (driveConfig.enabled && driveConfig.url) {
     checkAndAutoBackup();
   }).catch(() => {});
 } else {
-  // 드라이브 미연동 시에도 백업 상태 표시 갱신
+  // 드라이브 미연동: 즉시 반복업무 체크 후 백업 상태 갱신
+  checkAndCreateRepeatTasks();
   checkAndAutoBackup();
 }
 
