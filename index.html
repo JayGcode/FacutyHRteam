@@ -794,7 +794,8 @@
   /* 우측: 메모 영역 */
   .memo-pane-header {
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:10px;
+    margin-bottom:12px;
+    min-height:40px; /* 좌측 헤더(저장시각+드래그힌트 2줄)와 높이 맞춤 */
   }
   .memo-pane-title { font-size:13px; font-weight:700; color:#374151; }
   .memo-add-btn {
@@ -4391,11 +4392,16 @@ function renderTemplates() {
   if (noResult) noResult.style.display = 'none';
 
   // 설정의 카테고리 순서로 정렬 (같은 카테고리 내에서는 이름 가나다 순)
+  // 미지정/삭제된 카테고리 → 마지막 정의 카테고리(기타) 바로 앞에 배치
   filtered = filtered.slice().sort((a, b) => {
-    const ai = categories.indexOf(a.category || '');
-    const bi = categories.indexOf(b.category || '');
-    const catA = ai === -1 ? categories.length : ai;
-    const catB = bi === -1 ? categories.length : bi;
+    const getCatIdx = (cat) => {
+      if (!cat) return categories.length;          // 카테고리 없음 → 맨 뒤
+      const idx = categories.indexOf(cat);
+      if (idx !== -1) return idx;                  // 설정에 있는 카테고리 → 실제 순서 사용
+      return categories.length - 1.5;             // 설정에 없는(삭제된) 카테고리 → 마지막 카테고리(기타) 바로 앞
+    };
+    const catA = getCatIdx(a.category);
+    const catB = getCatIdx(b.category);
     if (catA !== catB) return catA - catB;
     return (a.name || '').localeCompare(b.name || '', 'ko');
   });
