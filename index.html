@@ -407,6 +407,7 @@
   .cal-day .day-num.sat { color: #4a7cbf; }
   .cal-task { font-size: 12px; font-weight: 500; padding: 3px 7px; border-radius: 5px; margin-bottom: 3px; white-space: normal; word-break: keep-all; overflow-wrap: break-word; cursor: pointer; line-height: 1.4; }
   .cal-task.gcal-event { background: #ddeaff; color: #1a4ea0; border-left: 3px solid #3a7bd5; cursor: default; font-weight: 600; }
+  .cal-task.cal-due-task { border-left: 3px solid currentColor; opacity: .92; }
   .cal-task.대기 { background: #e5e8ec; color: #6a7480; }
   .cal-task.진행중 { background: #d4e5f7; color: #3a6fa8; }
   .cal-task.완료 { background: #cce5d5; color: #2d6642; }
@@ -1560,7 +1561,12 @@ body.view-only #main { padding-top:30px; }
         <div class="card-body">
           <div class="cal-grid" id="cal-grid"></div>
           <div class="cal-legend">
-            <span id="gcal-legend" style="display:none;"><span class="legend-dot" style="background:#e8f0fe;border:1px solid #1a73e8;"></span>구글캘린더</span>
+            <span id="gcal-legend" style="display:none;"><span class="legend-dot" style="background:#ddeaff;border-left:3px solid #3a7bd5;"></span>구글캘린더</span>
+            <span><span class="legend-dot" style="background:#e5e8ec;border-left:3px solid #9eaab6;"></span>대기</span>
+            <span><span class="legend-dot" style="background:#d4e5f7;border-left:3px solid #3a6fa8;"></span>진행중</span>
+            <span><span class="legend-dot" style="background:#fbd9d6;border-left:3px solid #8a4a42;"></span>지연</span>
+            <span><span class="legend-dot" style="background:#cce5d5;border-left:3px solid #2d6642;"></span>완료</span>
+            <span><span class="legend-dot" style="background:#fdf0d0;border-left:3px solid #7a6030;"></span>보류</span>
           </div>
         </div>
       </div>
@@ -4257,13 +4263,25 @@ function renderCalendar() {
   for (let i = 0; i < first; i++) {
     html += `<div class="cal-day other-month"><div class="day-num">${prevLast - first + i + 1}</div></div>`;
   }
+  // 이달 마감기한 업무
+  const dueTasks = tasks.filter(t => {
+    if (!t.due) return false;
+    if (mf && t.member !== mf) return false;
+    const [ty, tm] = t.due.split('-').map(Number);
+    return ty === calYear && tm === calMonth + 1;
+  });
+
   for (let d = 1; d <= lastDay; d++) {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = dateStr === todayStr;
     const dow = new Date(calYear, calMonth, d).getDay();
     const dayNumClass = `day-num${dow===0?' sun':dow===6?' sat':''}`;
     const dayNumHtml = isToday ? `<div class="${dayNumClass}" style="background:var(--primary);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${d}</div>` : `<div class="${dayNumClass}">${d}</div>`;
-    html += `<div class="cal-day${isToday?' today':''}" data-date="${dateStr}">${dayNumHtml}</div>`;
+    const dayDueTasks = dueTasks.filter(t => t.due === dateStr);
+    const taskHtml = dayDueTasks.map(t =>
+      `<div class="cal-task cal-due-task ${t.status}" title="${t.name} (${memberName(t.member)})" onclick="showDetail('${t.id}')">${t.name}</div>`
+    ).join('');
+    html += `<div class="cal-day${isToday?' today':''}" data-date="${dateStr}">${dayNumHtml}${taskHtml}</div>`;
   }
   const remaining = 42 - first - lastDay;
   for (let i = 1; i <= remaining; i++) {
