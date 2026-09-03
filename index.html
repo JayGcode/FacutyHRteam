@@ -405,6 +405,7 @@
   .cal-day .day-num.sun { color: #c0614e; }
   .cal-day .day-num.sat { color: #5b8fd4; }
   .cal-task { font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .cal-task.gcal-event { background: #e8f0fe; color: #1a5276; border-left: 2px solid #1a73e8; font-style: italic; cursor: default; }
   .cal-task.대기 { background: #e5e8ec; color: #6a7480; }
   .cal-task.진행중 { background: #d4e5f7; color: #5b8fd4; }
   .cal-task.완료 { background: #cce5d5; color: #3d7a56; }
@@ -1561,6 +1562,7 @@ body.view-only #main { padding-top:30px; }
             <span><span class="legend-dot" style="background:#fbd9d6;border:1px solid #d4706a;"></span>지연</span>
             <span><span class="legend-dot" style="background:#cce5d5;"></span>완료</span>
             <span><span class="legend-dot" style="background:#fdf0d0;border:1px solid #e8b84b;"></span>보류</span>
+            <span id="gcal-legend" style="display:none;"><span class="legend-dot" style="background:#e8f0fe;border:1px solid #1a73e8;"></span>구글캘린더</span>
           </div>
         </div>
       </div>
@@ -1735,6 +1737,34 @@ body.view-only #main { padding-top:30px; }
             <input type="password" id="lock-drive-pw" placeholder="관리자 암호 입력"
               onkeydown="if(event.key==='Enter')adminUnlock(document.getElementById('lock-drive-pw').value)">
             <button class="btn btn-primary btn-sm" onclick="adminUnlock(document.getElementById('lock-drive-pw').value)">확인</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 구글 캘린더 연동 -->
+      <div class="card" style="margin-top:20px;" id="gcal-card">
+        <div class="card-header"><h3>📅 구글 캘린더 연동</h3></div>
+        <div class="card-body">
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;">
+            <input type="checkbox" id="cal-enabled" onchange="saveCalConfig()" style="width:16px;height:16px;">
+            <span style="font-weight:600;font-size:13px;">캘린더 연동 활성화</span>
+            <small style="color:#6a7480;">(업무 캘린더에 구글 캘린더 일정을 함께 표시)</small>
+          </label>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:5px;">구글 캘린더 ID</label>
+            <input type="text" id="cal-id" class="search-input" style="width:100%;font-size:12px;"
+                   placeholder="예: abc123@group.calendar.google.com  /  내 기본 캘린더: primary">
+            <div style="font-size:11px;color:#9eaab6;margin-top:4px;">
+              캘린더 ID 확인: 구글 캘린더 웹 → 해당 캘린더 설정 → 하단 "캘린더 통합" 항목
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="btn btn-primary btn-sm" onclick="saveCalConfig()">💾 저장</button>
+          </div>
+          <div style="padding:11px 14px;background:#e8f0fe;border-radius:8px;font-size:12px;color:#1a4e8a;line-height:1.7;">
+            💡 구글 드라이브 연동(Apps Script)이 활성화돼 있어야 동작합니다.<br>
+            💡 팀장이 바뀌면 이 화면에서 새 캘린더 ID로 변경하세요.<br>
+            💡 Apps Script에 <strong>Calendar API 권한</strong>이 허용돼 있어야 합니다.
           </div>
         </div>
       </div>
@@ -2267,6 +2297,7 @@ if (driveConfig.url === 'https://script.google.com/macros/s/AKfycbyqAwuNBsxxFUtz
   driveConfig.url = DEFAULT_DRIVE_URL;
   try { localStorage.setItem('hrm_drive_config', JSON.stringify(driveConfig)); } catch(e) {}
 }
+let calConfig          = load('hrm_cal_config', { enabled: false, calendarId: '' }); // 구글 캘린더 연동 설정
 let _driveLoading      = false;  // syncFromDrive 중에는 자동저장 억제
 let _memberSaveTimers  = {};     // 직원별 자동저장 타이머 { memberId: timerId }
 let _sharedSaveTimer   = null;   // 공유 데이터 자동저장 타이머
@@ -4235,13 +4266,18 @@ function renderCalendar() {
       ...startTasks.map(t => `<div class="cal-task" style="background:#e8f4fd;color:#0366d6;border-left:2px solid #0366d6;" title="시작: ${t.name}" onclick="showDetail('${t.id}')">▶ ${t.name}</div>`),
       ...dayTasks.map(t => `<div class="cal-task ${t.status}" title="${t.name} (${memberName(t.member)})" onclick="showDetail('${t.id}')">${t.name}</div>`)
     ].join('');
-    html += `<div class="cal-day${isToday?' today':''}">${dayNumHtml}${taskHtml}</div>`;
+    html += `<div class="cal-day${isToday?' today':''}" data-date="${dateStr}">${dayNumHtml}${taskHtml}</div>`;
   }
   const remaining = 42 - first - lastDay;
   for (let i = 1; i <= remaining; i++) {
     html += `<div class="cal-day other-month"><div class="day-num">${i}</div></div>`;
   }
   grid.innerHTML = html;
+
+  // ── 구글 캘린더 일정 비동기 주입 ──
+  const gcalLegend = document.getElementById('gcal-legend');
+  if (gcalLegend) gcalLegend.style.display = (calConfig.enabled && calConfig.calendarId) ? '' : 'none';
+  if (calConfig.enabled && calConfig.calendarId) _injectGCalEvents(calYear, calMonth);
 
   // 이번달 업무 목록
   const upBody = document.getElementById('cal-upcoming-body');
@@ -4264,6 +4300,36 @@ function renderCalendar() {
 
 function changeMonth(dir) { calMonth += dir; if (calMonth < 0) { calMonth = 11; calYear--; } if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 function goToday() { calYear = new Date().getFullYear(); calMonth = new Date().getMonth(); renderCalendar(); }
+
+// ── 구글 캘린더 일정 비동기 주입 ──
+async function _injectGCalEvents(year, month) {
+  if (!calConfig.enabled || !calConfig.calendarId) return;
+  if (!driveConfig.enabled || !driveConfig.url) return;
+  const mm       = String(month + 1).padStart(2, '0');
+  const lastDay  = new Date(year, month + 1, 0).getDate();
+  const startDate = `${year}-${mm}-01`;
+  const endDate   = `${year}-${mm}-${String(lastDay).padStart(2, '0')}`;
+  try {
+    const url = `${driveConfig.url}?action=getCalendar&start=${startDate}&end=${endDate}&calendarId=${encodeURIComponent(calConfig.calendarId)}&t=${Date.now()}`;
+    const res  = await fetch(url);
+    if (!res.ok) return;
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { return; }
+    if (!data || !Array.isArray(data.events)) return;
+    const grid = document.getElementById('cal-grid');
+    if (!grid) return;
+    data.events.forEach(ev => {
+      const cell = grid.querySelector(`[data-date="${ev.date}"]`);
+      if (!cell) return;
+      const div = document.createElement('div');
+      div.className = 'cal-task gcal-event';
+      div.title = ev.title + (ev.time ? ' ' + ev.time : '');
+      div.textContent = (ev.time ? ev.time + ' ' : '') + ev.title;
+      cell.appendChild(div);
+    });
+  } catch(e) { /* 실패 시 조용히 무시 */ }
+}
 
 // ══════════════════════════════════════════
 //  인수인계
@@ -4978,6 +5044,11 @@ function renderSettings() {
     driveStatus.textContent = '✅ 마지막 동기화: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
   }
   renderMemberSyncTable();
+  // ── 구글 캘린더 설정 반영 ──
+  const calEnabledEl = document.getElementById('cal-enabled');
+  const calIdEl      = document.getElementById('cal-id');
+  if (calEnabledEl) calEnabledEl.checked = calConfig.enabled;
+  if (calIdEl)      calIdEl.value        = calConfig.calendarId || '';
   // ── 백업 상태 갱신 ──
   const lastBackup = localStorage.getItem('hrm_last_backup_date');
   const bkDot = document.getElementById('bk-dot');
@@ -5179,6 +5250,17 @@ function saveDriveConfig() {
   const status = document.getElementById('drive-status');
   if (badge)  badge.style.display = (driveConfig.enabled && driveConfig.url) ? '' : 'none';
   if (status) status.textContent  = url ? '✅ URL이 저장되었습니다. "드라이브에 저장"을 눌러 첫 업로드를 하세요.' : '⚠️ URL을 입력하세요.';
+}
+
+function saveCalConfig() {
+  const calEnabledEl = document.getElementById('cal-enabled');
+  const calIdEl      = document.getElementById('cal-id');
+  calConfig.enabled    = calEnabledEl ? calEnabledEl.checked : false;
+  calConfig.calendarId = calIdEl      ? calIdEl.value.trim() : '';
+  try { localStorage.setItem('hrm_cal_config', JSON.stringify(calConfig)); } catch(e) {}
+  // 캘린더 뷰가 열려 있으면 즉시 반영
+  if (document.getElementById('page-calendar')?.classList.contains('active')) renderCalendar();
+  alert('구글 캘린더 설정이 저장되었습니다.');
 }
 
 function toggleDriveEnabled(checked) {
