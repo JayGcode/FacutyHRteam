@@ -1560,14 +1560,7 @@ body.view-only #main { padding-top:30px; }
         </div>
         <div class="card-body">
           <div class="cal-grid" id="cal-grid"></div>
-          <div class="cal-legend">
-            <span id="gcal-legend" style="display:none;"><span class="legend-dot" style="background:#ddeaff;border-left:3px solid #3a7bd5;"></span>구글캘린더</span>
-            <span><span class="legend-dot" style="background:#e5e8ec;border-left:3px solid #9eaab6;"></span>대기</span>
-            <span><span class="legend-dot" style="background:#d4e5f7;border-left:3px solid #3a6fa8;"></span>진행중</span>
-            <span><span class="legend-dot" style="background:#fbd9d6;border-left:3px solid #8a4a42;"></span>지연</span>
-            <span><span class="legend-dot" style="background:#cce5d5;border-left:3px solid #2d6642;"></span>완료</span>
-            <span><span class="legend-dot" style="background:#fdf0d0;border-left:3px solid #7a6030;"></span>보류</span>
-          </div>
+          <div class="cal-legend" id="cal-legend"></div>
         </div>
       </div>
 
@@ -4278,9 +4271,11 @@ function renderCalendar() {
     const dayNumClass = `day-num${dow===0?' sun':dow===6?' sat':''}`;
     const dayNumHtml = isToday ? `<div class="${dayNumClass}" style="background:var(--primary);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${d}</div>` : `<div class="${dayNumClass}">${d}</div>`;
     const dayDueTasks = dueTasks.filter(t => t.due === dateStr);
-    const taskHtml = dayDueTasks.map(t =>
-      `<div class="cal-task cal-due-task ${t.status}" title="${t.name} (${memberName(t.member)})" onclick="showDetail('${t.id}')">${t.name}</div>`
-    ).join('');
+    const taskHtml = dayDueTasks.map(t => {
+      const mi = members.findIndex(m => m.id === t.member);
+      const c  = MEMBER_COLORS[mi >= 0 ? mi % MEMBER_COLORS.length : 0];
+      return `<div class="cal-task cal-due-task" style="background:${c}22;color:${c};border-left:3px solid ${c};" title="${t.name} (${memberName(t.member)})" onclick="showDetail('${t.id}')">${t.name}</div>`;
+    }).join('');
     html += `<div class="cal-day${isToday?' today':''}" data-date="${dateStr}">${dayNumHtml}${taskHtml}</div>`;
   }
   const remaining = 42 - first - lastDay;
@@ -4289,9 +4284,19 @@ function renderCalendar() {
   }
   grid.innerHTML = html;
 
+  // ── 범례 렌더링 ──
+  const legend = document.getElementById('cal-legend');
+  if (legend) {
+    const gcalItem = (calConfig.enabled && calConfig.calendarId)
+      ? `<span><span class="legend-dot" style="background:#ddeaff;border-left:3px solid #3a7bd5;"></span>구글캘린더</span>` : '';
+    const memberItems = members.map((m, mi) => {
+      const c = MEMBER_COLORS[mi % MEMBER_COLORS.length];
+      return `<span><span class="legend-dot" style="background:${c}22;border-left:3px solid ${c};"></span>${m.name}</span>`;
+    }).join('');
+    legend.innerHTML = gcalItem + memberItems;
+  }
+
   // ── 구글 캘린더 일정 비동기 주입 ──
-  const gcalLegend = document.getElementById('gcal-legend');
-  if (gcalLegend) gcalLegend.style.display = (calConfig.enabled && calConfig.calendarId) ? '' : 'none';
   if (calConfig.enabled && calConfig.calendarId) _injectGCalEvents(calYear, calMonth);
 
   // 이번달 업무 목록
@@ -4341,7 +4346,10 @@ async function _injectGCalEvents(year, month) {
       div.className = 'cal-task gcal-event';
       div.title = ev.title + (ev.time ? ' ' + ev.time : '');
       div.textContent = (ev.time ? ev.time + ' ' : '') + ev.title;
-      cell.appendChild(div);
+      // GCal 일정은 업무 칩(.cal-due-task) 앞에 삽입
+      const firstTask = cell.querySelector('.cal-due-task');
+      if (firstTask) cell.insertBefore(div, firstTask);
+      else cell.appendChild(div);
     });
   } catch(e) { /* 실패 시 조용히 무시 */ }
 }
