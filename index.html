@@ -1244,6 +1244,7 @@ body.view-only #main { padding-top:30px; }
   <nav>
     <a onclick="showPage('dashboard')"><span class="icon">🏠</span> 대시보드</a>
     <a class="active" onclick="showPage('personal')"><span class="icon">👤</span> 개인별 현황</a>
+    <a onclick="showPage('calendar')"><span class="icon">📅</span> 업무 캘린더</a>
     <a onclick="showPage('done')"><span class="icon">✅</span> 완료 업무</a>
     <a onclick="showPage('templates')"><span class="icon">📋</span> 템플릿(연간플랜)</a>
     <a onclick="showPage('repeat')"><span class="icon">🔁</span> 반복 업무</a>
@@ -1251,7 +1252,6 @@ body.view-only #main { padding-top:30px; }
     <a onclick="showPage('settings')"><span class="icon">⚙️</span> 설정 / 공유</a>
     <a onclick="showPage('trash')" id="nav-trash"><span class="icon">🗑️</span> 휴지통</a>
     <a onclick="showPage('tasks')"><span class="icon">📝</span> 업무 목록</a>
-    <a onclick="showPage('calendar')"><span class="icon">📅</span> 업무 캘린더</a>
     <a onclick="showPage('handover')"><span class="icon">🔄</span> 업무 인수인계</a>
   </nav>
   <div class="version">v1.0 · 교원인사팀 전용</div>
@@ -2376,9 +2376,11 @@ const pageTitles = {
 };
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.querySelectorAll('#sidebar nav a').forEach(a => {
+    a.classList.remove('active');
+    if (a.getAttribute('onclick') === `showPage('${name}')`) a.classList.add('active');
+  });
   document.getElementById('page-' + name).classList.add('active');
-  document.querySelectorAll('#sidebar nav a')[Object.keys(pageTitles).indexOf(name)].classList.add('active');
   document.getElementById('page-title').textContent = pageTitles[name];
   if (name === 'dashboard') renderDashboard();
   if (name === 'tasks') { populateFilters(); renderTasks(); }
