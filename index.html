@@ -1740,7 +1740,7 @@ body.view-only #main { padding-top:30px; }
       </div>
 
       <!-- 구글 캘린더 연동 -->
-      <div class="card" style="margin-top:20px;" id="gcal-card">
+      <div class="card admin-card-wrap" style="margin-top:20px;" id="gcal-card">
         <div class="card-header"><h3>📅 구글 캘린더 연동</h3></div>
         <div class="card-body">
           <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;">
@@ -1761,8 +1761,19 @@ body.view-only #main { padding-top:30px; }
           </div>
           <div style="padding:11px 14px;background:#e8f0fe;border-radius:8px;font-size:12px;color:#1a4e8a;line-height:1.7;">
             💡 구글 드라이브 연동(Apps Script)이 활성화돼 있어야 동작합니다.<br>
-            💡 팀장이 바뀌면 이 화면에서 새 캘린더 ID로 변경하세요.<br>
+            💡 팀장이 바뀌면 관리자 암호 입력 후 새 캘린더 ID로 변경하세요.<br>
             💡 Apps Script에 <strong>Calendar API 권한</strong>이 허용돼 있어야 합니다.
+          </div>
+        </div>
+        <!-- 잠금 오버레이 -->
+        <div class="admin-lock-overlay" id="lock-cal" style="display:none;">
+          <div class="alock-icon">🔐</div>
+          <div class="alock-title">관리자 전용 기능</div>
+          <div class="alock-desc">구글 캘린더 연동 설정은 관리자만 변경할 수 있습니다.</div>
+          <div class="alock-form">
+            <input type="password" id="lock-cal-pw" placeholder="관리자 암호 입력"
+              onkeydown="if(event.key==='Enter')adminUnlock(document.getElementById('lock-cal-pw').value)">
+            <button class="btn btn-primary btn-sm" onclick="adminUnlock(document.getElementById('lock-cal-pw').value)">확인</button>
           </div>
         </div>
       </div>
@@ -4922,6 +4933,7 @@ function adminUnlock(pw) {
     document.getElementById('lock-data-pw')    && (document.getElementById('lock-data-pw').value    = '');
     document.getElementById('lock-backup-pw')  && (document.getElementById('lock-backup-pw').value  = '');
     document.getElementById('lock-lockpw-pw')  && (document.getElementById('lock-lockpw-pw').value  = '');
+    document.getElementById('lock-cal-pw')     && (document.getElementById('lock-cal-pw').value     = '');
   }
 }
 
@@ -4974,12 +4986,14 @@ function _refreshAdminLocks() {
   const lockData   = document.getElementById('lock-data');
   const lockBackup = document.getElementById('lock-backup');
   const lockLockpw = document.getElementById('lock-lockpw');
+  const lockCal    = document.getElementById('lock-cal');
   if (lockAdmin)  lockAdmin.style.display  = locked ? 'flex' : 'none';
   if (lockExport) lockExport.style.display = locked ? 'flex' : 'none';
   if (lockDrive)  lockDrive.style.display  = locked ? 'flex' : 'none';
   if (lockData)   lockData.style.display   = locked ? 'flex' : 'none';
   if (lockBackup) lockBackup.style.display = locked ? 'flex' : 'none';
   if (lockLockpw) lockLockpw.style.display = locked ? 'flex' : 'none';
+  if (lockCal)    lockCal.style.display    = locked ? 'flex' : 'none';
 }
 
 // ══════════════════════════════════════════
