@@ -1557,11 +1557,6 @@ body.view-only #main { padding-top:30px; }
         <div class="card-body">
           <div class="cal-grid" id="cal-grid"></div>
           <div class="cal-legend">
-            <span><span class="legend-dot" style="background:#e5e8ec;border:1px solid #9eaab6;"></span>대기</span>
-            <span><span class="legend-dot" style="background:#d4e5f7;"></span>진행중</span>
-            <span><span class="legend-dot" style="background:#fbd9d6;border:1px solid #d4706a;"></span>지연</span>
-            <span><span class="legend-dot" style="background:#cce5d5;"></span>완료</span>
-            <span><span class="legend-dot" style="background:#fdf0d0;border:1px solid #e8b84b;"></span>보류</span>
             <span id="gcal-legend" style="display:none;"><span class="legend-dot" style="background:#e8f0fe;border:1px solid #1a73e8;"></span>구글캘린더</span>
           </div>
         </div>
@@ -4243,14 +4238,6 @@ function renderCalendar() {
   const prevLast = new Date(calYear, calMonth, 0).getDate();
   const todayStr = today();
 
-  // 이달 표시할 업무
-  const mTasks = tasks.filter(t => {
-    if (mf && t.member !== mf) return false;
-    if (!t.due) return false;
-    const [ty, tm] = t.due.split('-').map(Number);
-    return ty === calYear && tm === calMonth + 1;
-  });
-
   for (let i = 0; i < first; i++) {
     html += `<div class="cal-day other-month"><div class="day-num">${prevLast - first + i + 1}</div></div>`;
   }
@@ -4258,15 +4245,9 @@ function renderCalendar() {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = dateStr === todayStr;
     const dow = new Date(calYear, calMonth, d).getDay();
-    const dayTasks = mTasks.filter(t => t.due === dateStr);
-    const startTasks = tasks.filter(t => t.start === dateStr && (!mf || t.member === mf));
     const dayNumClass = `day-num${dow===0?' sun':dow===6?' sat':''}`;
     const dayNumHtml = isToday ? `<div class="${dayNumClass}" style="background:var(--primary);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;">${d}</div>` : `<div class="${dayNumClass}">${d}</div>`;
-    const taskHtml = [
-      ...startTasks.map(t => `<div class="cal-task" style="background:#e8f4fd;color:#0366d6;border-left:2px solid #0366d6;" title="시작: ${t.name}" onclick="showDetail('${t.id}')">▶ ${t.name}</div>`),
-      ...dayTasks.map(t => `<div class="cal-task ${t.status}" title="${t.name} (${memberName(t.member)})" onclick="showDetail('${t.id}')">${t.name}</div>`)
-    ].join('');
-    html += `<div class="cal-day${isToday?' today':''}" data-date="${dateStr}">${dayNumHtml}${taskHtml}</div>`;
+    html += `<div class="cal-day${isToday?' today':''}" data-date="${dateStr}">${dayNumHtml}</div>`;
   }
   const remaining = 42 - first - lastDay;
   for (let i = 1; i <= remaining; i++) {
