@@ -5414,7 +5414,8 @@ async function syncFromDrive(isInitial = false) {
     });
     if (localHasUnpushed) {
       if (status) status.textContent = '🔄 로컬에 미업로드 내역 발견 — 드라이브에 저장 중...';
-      _drivePush(false); // async 완료 시 자체 상태 메시지로 갱신됨
+      showToast('🔄 미업로드 내역 발견 — 드라이브에 저장 중...');
+      _drivePush(false); // async 완료 시 자체 상태 메시지 + 토스트로 갱신됨
       _initialLoadFailed = false;
       return;
     }
@@ -5583,11 +5584,13 @@ async function _drivePush(silent) {
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
     if (!silent && status) status.textContent = '✅ 전체 저장 완료: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
+    showToast('✅ 드라이브 저장 완료');
     const badge = document.getElementById('drive-badge');
     if (badge) badge.style.display = (driveConfig.enabled && driveConfig.url) ? '' : 'none';
   } catch(err) {
     console.error('Drive 저장 실패:', err);
     if (!silent && status) status.textContent = '❌ 저장 실패: ' + err.message;
+    showToast('❌ 드라이브 저장 실패: ' + (err.message || '').substring(0, 30));
   } finally {
     if (!silent && btn) { btn.disabled = false; btn.textContent = '⬆️ 드라이브에 저장'; }
   }
