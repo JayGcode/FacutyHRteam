@@ -3010,6 +3010,11 @@ function toggleSubtask(taskId, subId, done) {
     t.status = '진행중';
   }
   saveTasks(t.member);
+  // 하위업무 완료/취소는 4초 디바운스를 1초로 단축하여 즉시 드라이브 저장
+  if (!_driveLoading && driveConfig.enabled && driveConfig.url && t.member) {
+    clearTimeout(_memberSaveTimers[t.member]);
+    _memberSaveTimers[t.member] = setTimeout(() => pushMemberData(t.member, true), 1000);
+  }
   // 현재 활성 페이지만 갱신
   if (document.getElementById('page-dashboard').classList.contains('active')) renderKanban();
   else if (document.getElementById('page-tasks').classList.contains('active')) renderTasks();
@@ -5312,16 +5317,34 @@ async function syncFromDrive(isInitial = false) {
     try { data = JSON.parse(text); }
     catch(e) { throw new Error('응답 파싱 실패 — URL을 확인하거나 Apps Script 배포를 재확인하세요'); }
     if (data.error) throw new Error(data.error);
-    if (data._empty) {
+
+    // ── 응답 포맷 감지 ──────────────────────────────────────────
+    // 신규 포맷: { shared: {members,categories,...}, members: [{tasks,memos,personalOrder},…] }
+    // 구형 포맷: { tasks, members, categories, … } (단일 shared.json 시절)
+    const isNewFmt   = data.shared !== undefined;
+    const sharedData = isNewFmt ? (data.shared || {}) : data;         // 공유 설정 소스
+    const memberFiles = (isNewFmt && Array.isArray(data.members))     // 직원별 업무 파일 배열
+                       ? data.members : [];
+
+    // ── 빈 드라이브 감지 (신구 포맷 공통) ──
+    const driveIsEmpty = isNewFmt
+      ? (Object.keys(sharedData).filter(k => k !== 'savedAt').length === 0 && memberFiles.length === 0)
+      : data._empty;
+    if (driveIsEmpty) {
       if (status) status.textContent = '드라이브에 저장된 데이터가 없습니다. 현재 데이터를 드라이브에 업로드합니다...';
       await _drivePush(false);
       return;
     }
+
     _driveLoading = true;
-    // ── 업무: 업무별 updatedAt 비교 → 더 최신 버전 유지 (서버 불안정 시 로컬 데이터 보호) ──
-    if (data.tasks) {
+
+    // ── 업무: member_*.json 파일들에서 합산 (신규) / data.tasks 직접 (구형) ──
+    const driveTasks = memberFiles.length > 0
+      ? memberFiles.flatMap(m => m.tasks || [])
+      : (sharedData.tasks || []);
+    if (driveTasks.length > 0 || memberFiles.length > 0) {
       const driveMap = {};
-      (data.tasks || []).forEach(t => driveMap[t.id] = t);
+      driveTasks.forEach(t => driveMap[t.id] = t);
       const localMap = {};
       tasks.forEach(t => localMap[t.id] = t);
       const allIds = new Set([...Object.keys(localMap), ...Object.keys(driveMap)]);
@@ -5339,26 +5362,38 @@ async function syncFromDrive(isInitial = false) {
       tasks = merged;
       save('hrm_tasks', tasks);
     }
-    if (data.members)       { members       = data.members;       save('hrm_members',       members); }
-    if (data.categories)    { categories    = data.categories;    save('hrm_categories',    categories); }
-    if (data.handovers)     { handovers     = data.handovers;     save('hrm_handovers',     handovers); }
-    if (data.templates)     { templates     = data.templates;     save('hrm_templates',     templates); }
-    if (data.memos)         { memos         = data.memos;         save('hrm_memos',         memos); }
-    if (data.trash)         { trash         = data.trash;         save('hrm_trash',         trash); }
-    if (data.personalOrder) { personalOrder = data.personalOrder; save('hrm_personal_order', personalOrder); }
-    // 반복업무: Drive 데이터가 로컬보다 최신일 때만 덮어쓰기 (창 닫기 경쟁 조건 방지)
-    if (data.repeatTasks) {
-      const driveAt = new Date(data.savedAt || 0).getTime();
+
+    // ── 공유 데이터 (팀원·카테고리·인수인계·템플릿·휴지통) ──
+    if (sharedData.members)    { members    = sharedData.members;    save('hrm_members',    members); }
+    if (sharedData.categories) { categories = sharedData.categories; save('hrm_categories', categories); }
+    if (sharedData.handovers)  { handovers  = sharedData.handovers;  save('hrm_handovers',  handovers); }
+    if (sharedData.templates)  { templates  = sharedData.templates;  save('hrm_templates',  templates); }
+    if (sharedData.trash)      { trash      = sharedData.trash;      save('hrm_trash',      trash); }
+
+    // ── 메모 / 개인 순서: member 파일 합산 (신규) 또는 sharedData 직접 (구형) ──
+    const driveMemos = memberFiles.length > 0
+      ? Object.assign({}, ...memberFiles.map(m => m.memos || {}))
+      : sharedData.memos;
+    if (driveMemos && Object.keys(driveMemos).length) {
+      memos = { ...memos, ...driveMemos };
+      save('hrm_memos', memos);
+    }
+    const driveOrder = memberFiles.length > 0
+      ? Object.assign({}, ...memberFiles.map(m => m.personalOrder || {}))
+      : sharedData.personalOrder;
+    if (driveOrder && Object.keys(driveOrder).length) {
+      personalOrder = { ...personalOrder, ...driveOrder };
+      save('hrm_personal_order', personalOrder);
+    }
+
+    // ── 반복업무: Drive 데이터가 로컬보다 최신일 때만 덮어쓰기 (창 닫기 경쟁 조건 방지) ──
+    if (sharedData.repeatTasks) {
+      const driveAt = new Date(sharedData.savedAt || 0).getTime();
       const localAt = new Date(load('hrm_repeat_tasks_saved_at', 0) || 0).getTime();
       if (driveAt >= localAt || !repeatTasks.length) {
-        repeatTasks = data.repeatTasks;
+        repeatTasks = sharedData.repeatTasks;
         localStorage.setItem('hrm_repeat_tasks', JSON.stringify(repeatTasks));
       }
-    }
-    // 직원별 마지막 저장 시각 수신
-    if (data.memberSavedAt) {
-      memberSyncTimes = { ...memberSyncTimes, ...data.memberSavedAt };
-      save('hrm_member_sync_times', memberSyncTimes);
     }
 
     _driveLoading = false;
@@ -5472,10 +5507,8 @@ async function pushMemberData(memberId, silent) {
     memberSyncTimes[memberId] = payload.data.savedAt;
     _driveLoading = true; save('hrm_member_sync_times', memberSyncTimes); _driveLoading = false;
     renderMemberSyncTable();
-    if (!silent) {
-      const status = document.getElementById('drive-status');
-      if (status) status.textContent = '✅ 저장 완료 (' + memberName(memberId) + '): ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
-    }
+    const status = document.getElementById('drive-status');
+    if (status) status.textContent = '✅ 자동저장 완료 (' + memberName(memberId) + '): ' + new Date(driveConfig.lastSync).toLocaleTimeString('ko-KR');
     const badge = document.getElementById('drive-badge');
     if (badge) badge.style.display = (driveConfig.enabled && driveConfig.url) ? '' : 'none';
   } catch(err) {
@@ -6886,6 +6919,14 @@ document.addEventListener('visibilitychange', () => {
 
 // iOS Safari 추가 대응: BFCache(뒤로가기 캐시) 포함 페이지 이탈 시
 window.addEventListener('pagehide', _emergencySave);
+
+// BFCache에서 복원될 때(탭 전환 후 돌아오기) 최신 데이터 자동 재동기화
+// event.persisted === true 이면 BFCache 복원, false 이면 일반 페이지 로드(초기 로드와 중복 방지)
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;                          // 일반 로드는 초기 syncFromDrive가 처리
+  if (!driveConfig.enabled || !driveConfig.url) return;
+  syncFromDrive(false).catch(() => {});
+});
 </script>
 <!-- 잠금 오버레이/배너는 스크립트 내에서 동적으로 생성됩니다 -->
 </body>
