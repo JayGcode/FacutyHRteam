@@ -6676,10 +6676,15 @@ function _wrRow(t, dotClass) {
   const priCls = {높음:'wr-pri wr-pri-h',보통:'wr-pri wr-pri-m',낮음:'wr-pri wr-pri-l'}[t.priority] || 'wr-pri wr-pri-l';
   const priLabel = t.priority && t.priority !== '보통' ? `<span class="${priCls}">${t.priority}</span>` : '';
   const dueDotClass = t._dueThisWeek ? 'wr-dot wr-dot-r' : dotClass;
+  // 미완료 하위업무 태그 (최대 3개 + 초과분 표시)
+  const incompleteSubs = (t.subtasks || []).filter(s => !s.done);
+  const subsHtml = incompleteSubs.length === 0 ? '' :
+    `<span class="wr-sub">${incompleteSubs[0].name}</span>` +
+    (incompleteSubs.length > 1 ? `<span class="wr-sub">+${incompleteSubs.length - 1}</span>` : '');
   return `<div class="wr-row">
     <div class="${dueDotClass}"></div>
     <div class="wr-name" title="${t.name}">${t.name}</div>
-    <div class="wr-meta">${dueLabel}${priLabel}</div>
+    <div class="wr-meta">${subsHtml}${dueLabel}${priLabel}</div>
   </div>`;
 }
 
@@ -6794,8 +6799,12 @@ function downloadWeeklyDoc() {
     const due = t.due || '';
     const statusDate = showCompleted
       ? (t.completedAt || t.updatedAt ? new Date(t.completedAt||t.updatedAt).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) : '') : '';
+    const incompleteSubs = (t.subtasks || []).filter(s => !s.done);
+    const subCell = incompleteSubs.length === 0 ? '' :
+      incompleteSubs[0].name + (incompleteSubs.length > 1 ? ` 외 ${incompleteSubs.length - 1}` : '');
     return `<tr>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;">${t.name}</td>
+      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;color:#6a7480;font-size:8.5pt;">${subCell}</td>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;color:${priColor[t.priority]||'#555'};font-weight:bold;">${t.priority||''}</td>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;${dueCss}">${showCompleted ? statusDate : due}</td>
     </tr>`;
@@ -6830,9 +6839,10 @@ function downloadWeeklyDoc() {
     return `<p style="margin:14px 0 4px;font-size:9.5pt;font-weight:bold;color:#525f6e;">${label} (${arr.length}건)</p>
     <table style="border-collapse:collapse;width:100%;font-size:9.5pt;border-top:2px solid #4c6f98;">
       <thead><tr style="background:#f7f9fb;">
-        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:55%;">업무명</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:15%;">우선순위</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:18%;">${lastColHeader}</th>
+        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:42%;">업무명</th>
+        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:26%;">미완료 하위업무</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:13%;">우선순위</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:17%;">${lastColHeader}</th>
       </tr></thead>
       <tbody>${tbodyHtml}</tbody>
     </table>`;
