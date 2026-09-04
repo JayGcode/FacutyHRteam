@@ -2306,6 +2306,8 @@ if (driveConfig.url === 'https://script.google.com/macros/s/AKfycbyqAwuNBsxxFUtz
   try { localStorage.setItem('hrm_drive_config', JSON.stringify(driveConfig)); } catch(e) {}
 }
 let calConfig          = load('hrm_cal_config', { enabled: false, calendarId: '' }); // 구글 캘린더 연동 설정
+const _calCache        = {};   // 구글 캘린더 캐시 { 'YYYY-MM': { events, fetchedAt } }
+const CAL_CACHE_TTL    = 5 * 60 * 1000; // 5분
 let _driveLoading      = false;  // syncFromDrive 중에는 자동저장 억제
 let _memberSaveTimers  = {};     // 직원별 자동저장 타이머 { memberId: timerId }
 let _sharedSaveTimer   = null;   // 공유 데이터 자동저장 타이머
@@ -4288,6 +4290,7 @@ function renderCalendar() {
     html += `<div class="cal-day other-month"><div class="day-num">${i}</div></div>`;
   }
   grid.innerHTML = html;
+  grid.dataset.ym = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`; // 현재 달 식별용
 
   // ── 범례 렌더링 ──
   const legend = document.getElementById('cal-legend');
@@ -4326,37 +4329,63 @@ function renderCalendar() {
 function changeMonth(dir) { calMonth += dir; if (calMonth < 0) { calMonth = 11; calYear--; } if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 function goToday() { calYear = new Date().getFullYear(); calMonth = new Date().getMonth(); renderCalendar(); }
 
-// ── 구글 캘린더 일정 비동기 주입 ──
+// ── 구글 캘린더 일정 비동기 주입 (캐시 우선) ──
 async function _injectGCalEvents(year, month) {
   if (!calConfig.enabled || !calConfig.calendarId) return;
   if (!driveConfig.enabled || !driveConfig.url) return;
-  const mm       = String(month + 1).padStart(2, '0');
-  const lastDay  = new Date(year, month + 1, 0).getDate();
+  const cacheKey  = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const mm        = String(month + 1).padStart(2, '0');
+  const lastDay   = new Date(year, month + 1, 0).getDate();
   const startDate = `${year}-${mm}-01`;
   const endDate   = `${year}-${mm}-${String(lastDay).padStart(2, '0')}`;
+
+  // ① 캐시가 있으면 즉시 표시
+  const cached = _calCache[cacheKey];
+  if (cached) _paintGCalEvents(cached.events);
+
+  // ② 캐시가 없거나 TTL 만료면 백그라운드에서 최신 데이터 가져오기
+  const isStale = !cached || (Date.now() - cached.fetchedAt > CAL_CACHE_TTL);
+  if (!isStale) return;
+
   try {
-    const url = `${driveConfig.url}?action=getCalendar&start=${startDate}&end=${endDate}&calendarId=${encodeURIComponent(calConfig.calendarId)}&t=${Date.now()}`;
+    const url  = `${driveConfig.url}?action=getCalendar&start=${startDate}&end=${endDate}&calendarId=${encodeURIComponent(calConfig.calendarId)}&t=${Date.now()}`;
     const res  = await fetch(url);
     if (!res.ok) return;
     const text = await res.text();
     let data;
     try { data = JSON.parse(text); } catch { return; }
     if (!data || !Array.isArray(data.events)) return;
-    const grid = document.getElementById('cal-grid');
-    if (!grid) return;
-    data.events.forEach(ev => {
-      const cell = grid.querySelector(`[data-date="${ev.date}"]`);
-      if (!cell) return;
-      const div = document.createElement('div');
-      div.className = 'cal-task gcal-event';
-      div.title = ev.title + (ev.time ? ' ' + ev.time : '');
-      div.textContent = (ev.time ? ev.time + ' ' : '') + ev.title;
-      // GCal 일정은 업무 칩(.cal-due-task) 앞에 삽입
-      const firstTask = cell.querySelector('.cal-due-task');
-      if (firstTask) cell.insertBefore(div, firstTask);
-      else cell.appendChild(div);
-    });
+    // 캐시 저장
+    _calCache[cacheKey] = { events: data.events, fetchedAt: Date.now() };
+    // 캐시가 이미 있었으면 이미 표시됐으므로 재렌더 시에만 덮어씀
+    // 캐시가 없었으면(첫 로드) 지금 표시
+    if (!cached) _paintGCalEvents(data.events);
+    else {
+      // 새 데이터가 캐시와 다르면 캘린더가 현재 같은 달을 보고 있을 때 조용히 갱신
+      const grid = document.getElementById('cal-grid');
+      if (grid && grid.dataset.ym === cacheKey) {
+        grid.querySelectorAll('.gcal-event').forEach(el => el.remove());
+        _paintGCalEvents(data.events);
+      }
+    }
   } catch(e) { /* 실패 시 조용히 무시 */ }
+}
+
+// ── 캘린더 그리드에 구글 일정 칩 삽입 ──
+function _paintGCalEvents(events) {
+  const grid = document.getElementById('cal-grid');
+  if (!grid) return;
+  events.forEach(ev => {
+    const cell = grid.querySelector(`[data-date="${ev.date}"]`);
+    if (!cell) return;
+    const div = document.createElement('div');
+    div.className = 'cal-task gcal-event';
+    div.title = ev.title + (ev.time ? ' ' + ev.time : '');
+    div.textContent = (ev.time ? ev.time + ' ' : '') + ev.title;
+    const firstTask = cell.querySelector('.cal-due-task');
+    if (firstTask) cell.insertBefore(div, firstTask);
+    else cell.appendChild(div);
+  });
 }
 
 // ══════════════════════════════════════════
@@ -6891,6 +6920,10 @@ if (driveConfig.enabled && driveConfig.url) {
   syncFromDrive(true).then(() => {
     checkAndCreateRepeatTasks();
     checkAndAutoBackup();
+    // 캘린더 연동이 설정돼 있으면 현재 월 데이터를 미리 캐시
+    if (calConfig.enabled && calConfig.calendarId) {
+      _injectGCalEvents(calYear, calMonth);
+    }
   }).catch(() => {});
 } else {
   // 드라이브 미연동: 즉시 반복업무 체크 후 백업 상태 갱신
