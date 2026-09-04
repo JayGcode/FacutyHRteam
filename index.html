@@ -5432,19 +5432,46 @@ async function syncFromDrive(isInitial = false) {
     renderMemberSyncTable();
     renderTemplates(); renderRepeat();
 
-    // ── 로컬 미업로드 데이터 감지 → 자동 드라이브 업로드 ──────────────────
-    // 업무의 updatedAt이 해당 직원의 마지막 Drive 저장 시각보다 최신이면
-    // (예: 폴더 ID 오류 등으로 저장 못 한 기간이 있었던 경우) 자동으로 드라이브에 올림
-    const localHasUnpushed = tasks.some(t => {
-      if (!t.member) return false;
+    // ── Drive에서 받아온 member 파일의 savedAt을 memberSyncTimes에 반영 ──────
+    // 이렇게 해야 "Drive에서 방금 받아온 다른 팀원 데이터"를
+    // 로컬 미업로드로 오인하지 않음
+    if (memberFiles.length > 0) {
+      let syncTimesUpdated = false;
+      memberFiles.forEach(mf => {
+        if (!mf.savedAt) return;
+        // memberId: memos / personalOrder 키 또는 tasks[0].member 에서 추출
+        const memberId = Object.keys(mf.memos || {})[0]
+                      || Object.keys(mf.personalOrder || {})[0]
+                      || (Array.isArray(mf.tasks) && mf.tasks[0] && mf.tasks[0].member);
+        if (!memberId) return;
+        const driveAt = new Date(mf.savedAt).getTime();
+        const localAt = new Date(memberSyncTimes[memberId] || 0).getTime();
+        if (driveAt > localAt) {
+          memberSyncTimes[memberId] = mf.savedAt;
+          syncTimesUpdated = true;
+        }
+      });
+      if (syncTimesUpdated) {
+        _driveLoading = true;
+        save('hrm_member_sync_times', memberSyncTimes);
+        _driveLoading = false;
+        renderMemberSyncTable();
+      }
+    }
+
+    // ── 로컬 미업로드 감지: Drive savedAt 갱신 후에 비교 ────────────────────
+    // 실제로 로컬에서만 변경된 팀원만 골라서 Push (전원 업로드 방지)
+    const membersToSync = new Set();
+    tasks.forEach(t => {
+      if (!t.member) return;
       const lastPush = new Date(memberSyncTimes[t.member] || 0).getTime();
       const taskTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
-      return taskTime > lastPush;
+      if (taskTime > lastPush) membersToSync.add(t.member);
     });
-    if (localHasUnpushed) {
+    if (membersToSync.size > 0) {
       if (status) status.textContent = '🔄 로컬 변경 사항을 드라이브에 저장하는 중...';
       showToast('🔄 변경 사항을 드라이브에 저장하는 중...');
-      _drivePush(false); // async 완료 시 자체 상태 메시지 + 토스트로 갱신됨
+      _pushChangedMembers(membersToSync);
       _initialLoadFailed = false;
       return;
     }
@@ -5628,6 +5655,24 @@ async function _drivePush(silent) {
 }
 
 function syncToDrive(silent) { return _drivePush(silent); }
+
+// ── 변경된 팀원만 선택적으로 Drive에 Push ──
+// syncFromDrive 후 실제로 로컬에서 수정된 팀원 데이터만 업로드 (전원 덮어쓰기 방지)
+async function _pushChangedMembers(memberIds) {
+  try {
+    await pushSharedData(true); // 공유 데이터(팀원 목록·카테고리 등) 는 항상 포함
+    for (const memberId of memberIds) {
+      await pushMemberData(memberId, true);
+    }
+    _sharedInitialized = true;
+    const status = document.getElementById('drive-status');
+    if (status) status.textContent = '✅ 변경 사항 저장 완료: ' + new Date().toLocaleString('ko-KR');
+    showToast('✅ 드라이브 저장 완료');
+  } catch(err) {
+    console.error('Drive 선택 저장 실패:', err);
+    showToast('❌ 드라이브 저장 실패: ' + (err.message || '').substring(0, 30));
+  }
+}
 
 // ══════════════════════════════════════════
 //  내보내기 / 가져오기
