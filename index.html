@@ -5371,6 +5371,7 @@ async function syncFromDrive(isInitial = false) {
     const driveTasks = memberFiles.length > 0
       ? memberFiles.flatMap(m => m.tasks || [])
       : (sharedData.tasks || []);
+    const localWinnerMembers = new Set(); // 로컬 태스크가 Drive보다 최신인 팀원 추적
     if (driveTasks.length > 0 || memberFiles.length > 0) {
       const driveMap = {};
       driveTasks.forEach(t => driveMap[t.id] = t);
@@ -5382,11 +5383,16 @@ async function syncFromDrive(isInitial = false) {
         const local = localMap[id];
         const drive = driveMap[id];
         if (!local)  { merged.push(drive);  return; }  // 드라이브에만 있으면 추가
-        if (!drive)  { merged.push(local);  return; }  // 로컬에만 있으면 유지
+        if (!drive)  { merged.push(local); if (local.member) localWinnerMembers.add(local.member); return; }  // 로컬에만 있으면 유지 + 업로드 대상
         // 둘 다 있으면 updatedAt(없으면 createdAt) 비교 → 최신 유지
         const lt = new Date(local.updatedAt || local.createdAt || 0).getTime();
         const dt = new Date(drive.updatedAt || drive.createdAt || 0).getTime();
-        merged.push(dt >= lt ? drive : local);
+        if (dt >= lt) {
+          merged.push(drive);
+        } else {
+          merged.push(local);
+          if (local.member) localWinnerMembers.add(local.member); // 로컬이 더 최신 → 업로드 대상
+        }
       });
       tasks = merged;
       save('hrm_tasks', tasks);
@@ -5459,19 +5465,14 @@ async function syncFromDrive(isInitial = false) {
       }
     }
 
-    // ── 로컬 미업로드 감지: Drive savedAt 갱신 후에 비교 ────────────────────
-    // 실제로 로컬에서만 변경된 팀원만 골라서 Push (전원 업로드 방지)
-    const membersToSync = new Set();
-    tasks.forEach(t => {
-      if (!t.member) return;
-      const lastPush = new Date(memberSyncTimes[t.member] || 0).getTime();
-      const taskTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
-      if (taskTime > lastPush) membersToSync.add(t.member);
-    });
-    if (membersToSync.size > 0) {
+    // ── 로컬 미업로드 감지: 병합 시 로컬이 이긴 팀원을 Drive에 업로드 ───────
+    // localWinnerMembers: 태스크 병합에서 로컬 버전이 Drive보다 최신이었던 팀원
+    // memberSyncTimes 기반 비교는 "팀장 전체저장" 등으로 savedAt이 미래로 밀릴 수 있어
+    // 실제 태스크 updatedAt 비교(병합 단계)로 대체함
+    if (localWinnerMembers.size > 0) {
       if (status) status.textContent = '🔄 로컬 변경 사항을 드라이브에 저장하는 중...';
       showToast('🔄 변경 사항을 드라이브에 저장하는 중...');
-      _pushChangedMembers(membersToSync);
+      _pushChangedMembers(localWinnerMembers);
       _initialLoadFailed = false;
       return;
     }
