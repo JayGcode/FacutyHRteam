@@ -5402,6 +5402,23 @@ async function syncFromDrive(isInitial = false) {
     populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
     renderMemberSyncTable();
     renderTemplates(); renderRepeat();
+
+    // ── 로컬 미업로드 데이터 감지 → 자동 드라이브 업로드 ──────────────────
+    // 업무의 updatedAt이 해당 직원의 마지막 Drive 저장 시각보다 최신이면
+    // (예: 폴더 ID 오류 등으로 저장 못 한 기간이 있었던 경우) 자동으로 드라이브에 올림
+    const localHasUnpushed = tasks.some(t => {
+      if (!t.member) return false;
+      const lastPush = new Date(memberSyncTimes[t.member] || 0).getTime();
+      const taskTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
+      return taskTime > lastPush;
+    });
+    if (localHasUnpushed) {
+      if (status) status.textContent = '🔄 로컬에 미업로드 내역 발견 — 드라이브에 저장 중...';
+      _drivePush(false); // async 완료 시 자체 상태 메시지로 갱신됨
+      _initialLoadFailed = false;
+      return;
+    }
+
     if (status) status.textContent = '✅ 불러오기 완료: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
     _initialLoadFailed = false;
   } catch(err) {
