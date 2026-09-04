@@ -5525,8 +5525,10 @@ async function pushMemberData(memberId, silent) {
     memberSyncTimes[memberId] = payload.data.savedAt;
     _driveLoading = true; save('hrm_member_sync_times', memberSyncTimes); _driveLoading = false;
     renderMemberSyncTable();
-    const status = document.getElementById('drive-status');
-    if (status) status.textContent = '✅ 자동저장 완료 (' + memberName(memberId) + '): ' + new Date(driveConfig.lastSync).toLocaleTimeString('ko-KR');
+    if (!silent) {
+      const status = document.getElementById('drive-status');
+      if (status) status.textContent = '✅ 자동저장 완료 (' + memberName(memberId) + '): ' + new Date(driveConfig.lastSync).toLocaleTimeString('ko-KR');
+    }
     const badge = document.getElementById('drive-badge');
     if (badge) badge.style.display = (driveConfig.enabled && driveConfig.url) ? '' : 'none';
   } catch(err) {
@@ -5575,8 +5577,8 @@ async function _drivePush(silent) {
   const status = document.getElementById('drive-status');
   if (!silent && btn) { btn.disabled = true; btn.textContent = '⏳ 저장 중...'; }
   try {
-    await pushSharedData(true);
-    await pushRepeatTasksData(true);
+    await pushSharedData(true);        // shared.json (repeatTasks 포함)
+    // pushRepeatTasksData 는 pushSharedData 의 별칭이므로 중복 호출 제거
     for (const m of members) {
       await pushMemberData(m.id, true);
     }
@@ -5584,13 +5586,13 @@ async function _drivePush(silent) {
     driveConfig.lastSync = new Date().toISOString();
     _driveLoading = true; save('hrm_drive_config', driveConfig); _driveLoading = false;
     if (!silent && status) status.textContent = '✅ 전체 저장 완료: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
-    showToast('✅ 드라이브 저장 완료');
+    if (!silent) showToast('✅ 드라이브 저장 완료');
     const badge = document.getElementById('drive-badge');
     if (badge) badge.style.display = (driveConfig.enabled && driveConfig.url) ? '' : 'none';
   } catch(err) {
     console.error('Drive 저장 실패:', err);
     if (!silent && status) status.textContent = '❌ 저장 실패: ' + err.message;
-    showToast('❌ 드라이브 저장 실패: ' + (err.message || '').substring(0, 30));
+    if (!silent) showToast('❌ 드라이브 저장 실패: ' + (err.message || '').substring(0, 30));
   } finally {
     if (!silent && btn) { btn.disabled = false; btn.textContent = '⬆️ 드라이브에 저장'; }
   }
