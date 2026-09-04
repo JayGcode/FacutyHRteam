@@ -6290,8 +6290,8 @@ async function renderBackupList() {
   }
   wrap.innerHTML = '<div class="backup-empty">⏳ 불러오는 중...</div>';
   try {
-    const payload = { action: 'listBackups' };
-    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
+    // listBackups 는 Apps Script doGet 에서 처리 → GET 요청으로 전송
+    const res = await fetch(driveConfig.url + '?action=listBackups&t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const result = await res.json();
     if (result.error) throw new Error(result.error);
@@ -6350,8 +6350,8 @@ async function doSelectiveRestore() {
   const wrap = document.getElementById('backup-list-wrap');
   if (wrap) wrap.innerHTML = '<div class="backup-empty">⏳ 복구 중...</div>';
   try {
-    const payload = { action: 'getBackup', fileId: _restoreFileId };
-    const res = await fetch(driveConfig.url, { method: 'POST', body: JSON.stringify(payload) });
+    // getBackup 은 Apps Script doGet 에서 처리 → GET 요청으로 전송
+    const res = await fetch(driveConfig.url + '?action=getBackup&fileId=' + encodeURIComponent(_restoreFileId) + '&t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
