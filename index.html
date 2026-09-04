@@ -6304,8 +6304,9 @@ async function renderBackupList() {
       <div style="font-size:11px;color:#9eaab6;margin-bottom:6px;">최근 백업 ${list.length}개 (7일 초과 시 자동 삭제)</div>
       <div class="backup-list">
         ${list.map(b => {
-          const dt = new Date(b.createdAt);
-          const dtStr = dt.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+          // Apps Script 는 'created' 필드로 반환 (createdAt 아님)
+          const dt = new Date(b.created || b.date || b.createdAt);
+          const dtStr = isNaN(dt) ? (b.date || b.name) : dt.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
           const label = b.name.replace(/^backup_/, '').replace(/_/g, ' ').replace(/\.json$/, '');
           return `<div class="backup-row">
             <span class="bk-name">📦 ${dtStr}</span>
