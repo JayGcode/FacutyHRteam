@@ -5560,6 +5560,7 @@ function triggerSharedSave() {
 // ── 직원 한 명의 데이터를 Drive에 저장 ──
 async function pushMemberData(memberId, silent) {
   if (!driveConfig.url) return;
+  if (isMobileOrTablet()) return; // 모바일·태블릿은 드라이브 업로드 차단
   const memberTasks = tasks.filter(t => t.member === memberId);
   const memberMemos = { [memberId]: memos[memberId] || [] };
   const memberOrder = { [memberId]: personalOrder[memberId] || [] };
@@ -5603,6 +5604,7 @@ async function pushRepeatTasksData(silent) {
 // ── 공유 데이터(팀원·카테고리·인수인계·템플릿·휴지통)를 Drive에 저장 ──
 async function pushSharedData(silent) {
   if (!driveConfig.url) return;
+  if (isMobileOrTablet()) return; // 모바일·태블릿은 드라이브 업로드 차단
   const payload = {
     action: 'saveShared',
     data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
@@ -5630,6 +5632,7 @@ async function pushSharedData(silent) {
 // ── 수동 전체 저장 (버튼) — shared.json + 전체 member_*.json ──
 async function _drivePush(silent) {
   if (!driveConfig.url) return;
+  if (isMobileOrTablet()) return; // 모바일·태블릿은 드라이브 업로드 차단
   const btn    = document.getElementById('drive-save-btn');
   const status = document.getElementById('drive-status');
   if (!silent && btn) { btn.disabled = true; btn.textContent = '⏳ 저장 중...'; }
@@ -5660,6 +5663,7 @@ function syncToDrive(silent) { return _drivePush(silent); }
 // ── 변경된 팀원만 선택적으로 Drive에 Push ──
 // syncFromDrive 후 실제로 로컬에서 수정된 팀원 데이터만 업로드 (전원 덮어쓰기 방지)
 async function _pushChangedMembers(memberIds) {
+  if (isMobileOrTablet()) return; // 모바일·태블릿은 드라이브 업로드 차단
   try {
     await pushSharedData(true); // 공유 데이터(팀원 목록·카테고리 등) 는 항상 포함
     for (const memberId of memberIds) {
@@ -5826,7 +5830,7 @@ function isMobileOrTablet() {
   const ua = navigator.userAgent || '';
   if (/iPhone|iPod/i.test(ua)) return true;         // iOS 폰
   if (/iPad/i.test(ua)) return true;                 // iPad (구버전 UA)
-  if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true; // iPad iOS13+ (데스크탑 UA 위장)
+  if (/Macintosh/i.test(ua) && 'ontouchstart' in window) return true; // iPad iOS13+ (데스크탑 UA 위장, 맥북 트랙패드와 구분)
   if (/Android/i.test(ua)) return true;              // 안드로이드 폰·탭 모두
   return false;
 }
