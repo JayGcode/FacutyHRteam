@@ -5821,7 +5821,20 @@ function loadLockSession() {
   return null;
 }
 
+// 모바일·태블릿 감지 (iPhone, iPod, Android폰, iPad, 갤럭시탭 등)
+function isMobileOrTablet() {
+  const ua = navigator.userAgent || '';
+  if (/iPhone|iPod/i.test(ua)) return true;         // iOS 폰
+  if (/iPad/i.test(ua)) return true;                 // iPad (구버전 UA)
+  if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true; // iPad iOS13+ (데스크탑 UA 위장)
+  if (/Android/i.test(ua)) return true;              // 안드로이드 폰·탭 모두
+  return false;
+}
+
 function initAppLock() {
+  // 모바일·태블릿은 암호 없이 조회 모드로 자동 진입
+  if (isMobileOrTablet()) { setLockMode('view'); return; }
+
   const { edit, view } = appPasswords;
   if (!edit && !view) { appLockMode = 'edit'; return; } // 암호 미설정 → 편집 모드
   // 24시간 이내 편집 세션이 있으면 바로 복원
