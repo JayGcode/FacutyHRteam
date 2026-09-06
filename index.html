@@ -3471,8 +3471,8 @@ function renderPersonal() {
   const tabs    = document.getElementById('person-tabs');
   const details = document.getElementById('person-details');
 
-  tabs.innerHTML = members.map((m, i) =>
-    `<div class="person-tab ${i===currentPersonIdx?'active':''}" onclick="switchPerson(${i})" id="ptab-${i}">${m.name} (${m.role})</div>`
+  tabs.innerHTML = members.filter(m => m && m.name).map((m, i) =>
+    `<div class="person-tab ${i===currentPersonIdx?'active':''}" onclick="switchPerson(${i})" id="ptab-${i}">${m.name} (${m.role || ''})</div>`
   ).join('');
 
   details.innerHTML = members.map((m, mi) => {
@@ -5393,7 +5393,11 @@ async function syncFromDrive(isInitial = false) {
     }
 
     // ── 공유 데이터 (팀원·카테고리·인수인계·템플릿·휴지통) ──
-    if (sharedData.members)    { members    = sharedData.members;    save('hrm_members',    members); }
+    if (sharedData.members) {
+      // Drive에서 받은 members가 {id, name, role} 형식인지 검증 후 적용
+      const validMembers = (sharedData.members || []).filter(m => m && typeof m === 'object' && m.id && m.name);
+      if (validMembers.length > 0) { members = validMembers; save('hrm_members', members); }
+    }
     if (sharedData.categories) { categories = sharedData.categories; save('hrm_categories', categories); }
     if (sharedData.handovers)  { handovers  = sharedData.handovers;  save('hrm_handovers',  handovers); }
     if (sharedData.templates)  { templates  = sharedData.templates;  save('hrm_templates',  templates); }
