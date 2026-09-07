@@ -5464,20 +5464,22 @@ async function syncFromDrive(isInitial = false) {
     }
 
     // ── 로컬 미업로드 감지: Drive savedAt 갱신 후에 비교 ────────────────────
-    // 실제로 로컬에서만 변경된 팀원만 골라서 Push (전원 업로드 방지)
-    const membersToSync = new Set();
-    tasks.forEach(t => {
-      if (!t.member) return;
-      const lastPush = new Date(memberSyncTimes[t.member] || 0).getTime();
-      const taskTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
-      if (taskTime > lastPush) membersToSync.add(t.member);
-    });
-    if (membersToSync.size > 0) {
-      if (status) status.textContent = '🔄 로컬 변경 사항을 드라이브에 저장하는 중...';
-      showToast('🔄 변경 사항을 드라이브에 저장하는 중...');
-      _pushChangedMembers(membersToSync);
-      _initialLoadFailed = false;
-      return;
+    // 모바일/태블릿은 Drive 업로드 불가 → 이 체크 건너뜀 (return 막아서 렌더 정상 진행)
+    if (!isMobileOrTablet()) {
+      const membersToSync = new Set();
+      tasks.forEach(t => {
+        if (!t.member) return;
+        const lastPush = new Date(memberSyncTimes[t.member] || 0).getTime();
+        const taskTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
+        if (taskTime > lastPush) membersToSync.add(t.member);
+      });
+      if (membersToSync.size > 0) {
+        if (status) status.textContent = '🔄 로컬 변경 사항을 드라이브에 저장하는 중...';
+        showToast('🔄 변경 사항을 드라이브에 저장하는 중...');
+        _pushChangedMembers(membersToSync);
+        _initialLoadFailed = false;
+        return;
+      }
     }
 
     if (status) status.textContent = '✅ 불러오기 완료: ' + new Date(driveConfig.lastSync).toLocaleString('ko-KR');
