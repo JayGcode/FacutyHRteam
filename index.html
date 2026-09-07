@@ -3471,8 +3471,8 @@ function renderPersonal() {
   const tabs    = document.getElementById('person-tabs');
   const details = document.getElementById('person-details');
 
-  tabs.innerHTML = members.filter(m => m && m.name).map((m, i) =>
-    `<div class="person-tab ${i===currentPersonIdx?'active':''}" onclick="switchPerson(${i})" id="ptab-${i}">${m.name} (${m.role || ''})</div>`
+  tabs.innerHTML = members.map((m, i) =>
+    `<div class="person-tab ${i===currentPersonIdx?'active':''}" onclick="switchPerson(${i})" id="ptab-${i}">${m.name} (${m.role})</div>`
   ).join('');
 
   details.innerHTML = members.map((m, mi) => {
@@ -5371,6 +5371,7 @@ async function syncFromDrive(isInitial = false) {
     const driveTasks = memberFiles.length > 0
       ? memberFiles.flatMap(m => m.tasks || [])
       : (sharedData.tasks || []);
+    const localWinnerMembers = new Set(); // 로컬 태스크가 Drive보다 최신인 팀원 추적
     if (driveTasks.length > 0 || memberFiles.length > 0) {
       const driveMap = {};
       driveTasks.forEach(t => driveMap[t.id] = t);
@@ -5382,22 +5383,23 @@ async function syncFromDrive(isInitial = false) {
         const local = localMap[id];
         const drive = driveMap[id];
         if (!local)  { merged.push(drive);  return; }  // 드라이브에만 있으면 추가
-        if (!drive)  { merged.push(local);  return; }  // 로컬에만 있으면 유지
+        if (!drive)  { merged.push(local); if (local.member) localWinnerMembers.add(local.member); return; }  // 로컬에만 있으면 유지 + 업로드 대상
         // 둘 다 있으면 updatedAt(없으면 createdAt) 비교 → 최신 유지
         const lt = new Date(local.updatedAt || local.createdAt || 0).getTime();
         const dt = new Date(drive.updatedAt || drive.createdAt || 0).getTime();
-        merged.push(dt >= lt ? drive : local);
+        if (dt >= lt) {
+          merged.push(drive);
+        } else {
+          merged.push(local);
+          if (local.member) localWinnerMembers.add(local.member); // 로컬이 더 최신 → 업로드 대상
+        }
       });
       tasks = merged;
       save('hrm_tasks', tasks);
     }
 
     // ── 공유 데이터 (팀원·카테고리·인수인계·템플릿·휴지통) ──
-    if (sharedData.members) {
-      // Drive에서 받은 members가 {id, name, role} 형식인지 검증 후 적용
-      const validMembers = (sharedData.members || []).filter(m => m && typeof m === 'object' && m.id && m.name);
-      if (validMembers.length > 0) { members = validMembers; save('hrm_members', members); }
-    }
+    if (sharedData.members)    { members    = sharedData.members;    save('hrm_members',    members); }
     if (sharedData.categories) { categories = sharedData.categories; save('hrm_categories', categories); }
     if (sharedData.handovers)  { handovers  = sharedData.handovers;  save('hrm_handovers',  handovers); }
     if (sharedData.templates)  { templates  = sharedData.templates;  save('hrm_templates',  templates); }
@@ -5463,19 +5465,14 @@ async function syncFromDrive(isInitial = false) {
       }
     }
 
-    // ── 로컬 미업로드 감지: Drive savedAt 갱신 후에 비교 ────────────────────
-    // 실제로 로컬에서만 변경된 팀원만 골라서 Push (전원 업로드 방지)
-    const membersToSync = new Set();
-    tasks.forEach(t => {
-      if (!t.member) return;
-      const lastPush = new Date(memberSyncTimes[t.member] || 0).getTime();
-      const taskTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
-      if (taskTime > lastPush) membersToSync.add(t.member);
-    });
-    if (membersToSync.size > 0) {
+    // ── 로컬 미업로드 감지: 병합 시 로컬이 이긴 팀원을 Drive에 업로드 ───────
+    // localWinnerMembers: 태스크 병합에서 로컬 버전이 Drive보다 최신이었던 팀원
+    // memberSyncTimes 기반 비교는 "팀장 전체저장" 등으로 savedAt이 미래로 밀릴 수 있어
+    // 실제 태스크 updatedAt 비교(병합 단계)로 대체함
+    if (localWinnerMembers.size > 0) {
       if (status) status.textContent = '🔄 로컬 변경 사항을 드라이브에 저장하는 중...';
       showToast('🔄 변경 사항을 드라이브에 저장하는 중...');
-      _pushChangedMembers(membersToSync);
+      _pushChangedMembers(localWinnerMembers);
       _initialLoadFailed = false;
       return;
     }
@@ -6679,10 +6676,15 @@ function _wrRow(t, dotClass) {
   const priCls = {높음:'wr-pri wr-pri-h',보통:'wr-pri wr-pri-m',낮음:'wr-pri wr-pri-l'}[t.priority] || 'wr-pri wr-pri-l';
   const priLabel = t.priority && t.priority !== '보통' ? `<span class="${priCls}">${t.priority}</span>` : '';
   const dueDotClass = t._dueThisWeek ? 'wr-dot wr-dot-r' : dotClass;
+  // 미완료 하위업무 태그 (최대 3개 + 초과분 표시)
+  const incompleteSubs = (t.subtasks || []).filter(s => !s.done);
+  const subsHtml = incompleteSubs.length === 0 ? '' :
+    `<span class="wr-sub">${incompleteSubs[0].name}</span>` +
+    (incompleteSubs.length > 1 ? `<span class="wr-sub">+${incompleteSubs.length - 1}</span>` : '');
   return `<div class="wr-row">
     <div class="${dueDotClass}"></div>
     <div class="wr-name" title="${t.name}">${t.name}</div>
-    <div class="wr-meta">${dueLabel}${priLabel}</div>
+    <div class="wr-meta">${subsHtml}${dueLabel}${priLabel}</div>
   </div>`;
 }
 
@@ -6797,8 +6799,12 @@ function downloadWeeklyDoc() {
     const due = t.due || '';
     const statusDate = showCompleted
       ? (t.completedAt || t.updatedAt ? new Date(t.completedAt||t.updatedAt).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}) : '') : '';
+    const incompleteSubs = (t.subtasks || []).filter(s => !s.done);
+    const subCell = incompleteSubs.length === 0 ? '' :
+      incompleteSubs[0].name + (incompleteSubs.length > 1 ? ` 외 ${incompleteSubs.length - 1}` : '');
     return `<tr>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;">${t.name}</td>
+      <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;color:#6a7480;font-size:8.5pt;">${subCell}</td>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;color:${priColor[t.priority]||'#555'};font-weight:bold;">${t.priority||''}</td>
       <td style="padding:5px 10px;border-bottom:1px solid #e8edf3;text-align:center;${dueCss}">${showCompleted ? statusDate : due}</td>
     </tr>`;
@@ -6833,9 +6839,10 @@ function downloadWeeklyDoc() {
     return `<p style="margin:14px 0 4px;font-size:9.5pt;font-weight:bold;color:#525f6e;">${label} (${arr.length}건)</p>
     <table style="border-collapse:collapse;width:100%;font-size:9.5pt;border-top:2px solid #4c6f98;">
       <thead><tr style="background:#f7f9fb;">
-        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:55%;">업무명</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:15%;">우선순위</th>
-        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:18%;">${lastColHeader}</th>
+        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:42%;">업무명</th>
+        <th style="padding:5px 10px;text-align:left;font-weight:600;color:#525f6e;width:26%;">미완료 하위업무</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:13%;">우선순위</th>
+        <th style="padding:5px 10px;text-align:center;font-weight:600;color:#525f6e;width:17%;">${lastColHeader}</th>
       </tr></thead>
       <tbody>${tbodyHtml}</tbody>
     </table>`;
