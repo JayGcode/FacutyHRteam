@@ -5563,6 +5563,8 @@ function triggerSharedSave() {
 // ── 직원 한 명의 데이터를 Drive에 저장 ──
 async function pushMemberData(memberId, silent) {
   if (!driveConfig.url) return;
+  // 모바일/태블릿에서는 Drive 업로드 차단
+  if (isMobileOrTablet()) return;
   // 유효하지 않은 memberId(undefined, null, 'undefined' 문자열 등) 방어
   if (!memberId || memberId === 'undefined' || !members.find(m => m.id === memberId)) return;
   const memberTasks = tasks.filter(t => t.member === memberId);
@@ -5608,6 +5610,8 @@ async function pushRepeatTasksData(silent) {
 // ── 공유 데이터(팀원·카테고리·인수인계·템플릿·휴지통)를 Drive에 저장 ──
 async function pushSharedData(silent) {
   if (!driveConfig.url) return;
+  // 모바일/태블릿에서는 Drive 업로드 차단
+  if (isMobileOrTablet()) return;
   const payload = {
     action: 'saveShared',
     data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
@@ -5635,6 +5639,8 @@ async function pushSharedData(silent) {
 // ── 수동 전체 저장 (버튼) — shared.json + 전체 member_*.json ──
 async function _drivePush(silent) {
   if (!driveConfig.url) return;
+  // 모바일/태블릿에서는 Drive 업로드 차단
+  if (isMobileOrTablet()) return;
   const btn    = document.getElementById('drive-save-btn');
   const status = document.getElementById('drive-status');
   if (!silent && btn) { btn.disabled = true; btn.textContent = '⏳ 저장 중...'; }
@@ -5665,6 +5671,8 @@ function syncToDrive(silent) { return _drivePush(silent); }
 // ── 변경된 팀원만 선택적으로 Drive에 Push ──
 // syncFromDrive 후 실제로 로컬에서 수정된 팀원 데이터만 업로드 (전원 덮어쓰기 방지)
 async function _pushChangedMembers(memberIds) {
+  // 모바일/태블릿에서는 Drive 업로드 차단
+  if (isMobileOrTablet()) return;
   try {
     await pushSharedData(true); // 공유 데이터(팀원 목록·카테고리 등) 는 항상 포함
     for (const memberId of memberIds) {
@@ -5802,6 +5810,21 @@ try {
   }
 } catch(e) {}
 let appPasswords = load('hrm_app_passwords', { edit: DEFAULT_EDIT_PASSWORD, view: DEFAULT_VIEW_PASSWORD });
+// ── 모바일/태블릿 감지 (MacBook 트랙패드 오감지 방지: ontouchstart 기준) ──
+function isMobileOrTablet() {
+  const ua = navigator.userAgent || '';
+  // Android 폰/태블릿
+  if (/Android/i.test(ua)) return true;
+  // iPhone
+  if (/iPhone/i.test(ua)) return true;
+  // iPad: iOS13+ 이후 iPad는 UA가 Macintosh처럼 보이므로 ontouchstart로 구별
+  if (/iPad/i.test(ua)) return true;
+  if (/Macintosh/i.test(ua) && 'ontouchstart' in window) return true;
+  // 기타 모바일
+  if (/Mobile|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true;
+  return false;
+}
+
 let appLockMode  = 'edit'; // 'edit' | 'view' | 'locked'
 
 const LOCK_SESSION_KEY = 'hrm_lock_session';
@@ -5827,6 +5850,8 @@ function loadLockSession() {
 }
 
 function initAppLock() {
+  // 모바일/태블릿 → 암호 입력 없이 바로 조회 모드
+  if (isMobileOrTablet()) { setLockMode('view'); return; }
   const { edit, view } = appPasswords;
   if (!edit && !view) { appLockMode = 'edit'; return; } // 암호 미설정 → 편집 모드
   // 24시간 이내 편집 세션이 있으면 바로 복원
