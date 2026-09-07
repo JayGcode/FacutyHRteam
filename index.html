@@ -1660,21 +1660,13 @@ body.view-only #main { padding-top:30px; }
             </div>
             <div>
               <h4 style="margin-bottom:10px;font-size:13px;color:var(--primary);">📥 가져오기</h4>
-              <p style="font-size:12px;color:#6a7480;margin-bottom:12px;">팀원이 공유한 JSON 파일을 불러옵니다.<br>기존 데이터와 병합되거나 대체됩니다.</p>
+              <p style="font-size:12px;color:#6a7480;margin-bottom:12px;">JSON 파일을 선택하면 항목을 골라 가져올 수 있습니다.<br>병합 또는 덮어쓰기 방식을 선택할 수 있습니다.</p>
               <div class="drop-zone" onclick="document.getElementById('fileInput').click()" id="drop-zone">
                 <div class="icon">📁</div>
                 <p>클릭하거나 파일을 여기에 끌어다 놓으세요</p>
                 <small>*.json 파일 지원</small>
               </div>
               <input type="file" id="fileInput" accept=".json" onchange="importData(this)">
-              <div style="margin-top:10px;display:flex;gap:8px;">
-                <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                  <input type="radio" name="import-mode" value="merge" checked> 기존 데이터와 병합
-                </label>
-                <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                  <input type="radio" name="import-mode" value="replace"> 기존 데이터 대체
-                </label>
-              </div>
             </div>
           </div>
           <div style="margin-top:16px;padding:12px;background:#fdf0d0;border-radius:8px;font-size:12px;color:#8a6a28;">
@@ -2214,6 +2206,59 @@ body.view-only #main { padding-top:30px; }
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('handover-modal')">취소</button>
       <button class="btn btn-primary" onclick="saveHandover()">💾 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── JSON 선택 가져오기 모달 ───────────── -->
+<div class="modal-overlay" id="import-select-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h3>📥 선택 가져오기</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('import-select-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="import-file-name" style="font-size:12px;color:#9eaab6;margin-bottom:12px;word-break:break-all;"></div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">가져올 항목을 선택하세요</div>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="import-checkboxes">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="ic-tasks" value="tasks"> <span id="ic-tasks-label">📝 업무 목록</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="ic-members" value="members"> <span id="ic-members-label">👥 팀원 정보</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="ic-categories" value="categories"> <span id="ic-categories-label">🗂️ 카테고리</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="ic-handovers" value="handovers"> <span id="ic-handovers-label">🔄 인수인계</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="ic-templates" value="templates"> <span id="ic-templates-label">📋 템플릿</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="ic-repeatTasks" value="repeatTasks"> <span id="ic-repeatTasks-label">🔁 반복 업무</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="ic-memos" value="memos"> <span id="ic-memos-label">📌 메모</span>
+        </label>
+      </div>
+      <div style="margin-top:14px;padding:10px 12px;background:var(--accent);border-radius:8px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--primary);">가져오기 방식</div>
+        <label style="display:flex;align-items:flex-start;gap:6px;font-size:12px;cursor:pointer;margin-bottom:6px;">
+          <input type="radio" name="import-select-mode" value="merge" checked style="margin-top:2px;">
+          <span><strong>병합</strong> — 파일의 항목을 현재 데이터에 추가 (중복 ID는 최신 날짜 기준)</span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:6px;font-size:12px;cursor:pointer;">
+          <input type="radio" name="import-select-mode" value="replace" style="margin-top:2px;">
+          <span><strong>덮어쓰기</strong> — 선택한 항목을 파일 데이터로 완전 교체</span>
+        </label>
+      </div>
+      <div style="font-size:11px;color:#e8984b;margin-top:10px;">⚠ 선택하지 않은 항목은 현재 데이터를 그대로 유지합니다.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('import-select-modal')">취소</button>
+      <button class="btn btn-primary" onclick="doSelectiveImport()">📥 선택 항목 가져오기</button>
     </div>
   </div>
 </div>
@@ -5831,42 +5876,150 @@ function importData(input) {
   importFile(f); input.value = '';
 }
 
+let _importData = null; // 선택 가져오기 모달용 파싱 데이터
+
 function importFile(f) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
-      const mode = document.querySelector('input[name="import-mode"]:checked')?.value || 'merge';
-      if (mode === 'replace') {
-        if (!confirm('기존 데이터를 모두 삭제하고 가져오시겠습니까?')) return;
-        tasks = data.tasks || []; handovers = data.handovers || [];
-        if (data.members)       members       = data.members;
-        if (data.categories)    categories    = data.categories;
-        if (data.templates)     templates     = data.templates;
-        if (data.personalOrder) personalOrder = data.personalOrder;
-      } else {
-        const existIds = new Set(tasks.map(t => t.id));
-        (data.tasks || []).forEach(t => { if (!existIds.has(t.id)) tasks.push(t); });
-        const existHIds = new Set(handovers.map(h => h.id));
-        (data.handovers || []).forEach(h => { if (!existHIds.has(h.id)) handovers.push(h); });
-        if (data.templates) {
-          const existTplIds = new Set(templates.map(t => t.id));
-          (data.templates || []).forEach(t => { if (!existTplIds.has(t.id)) templates.push(t); });
-        }
-      }
-      if (data.repeatTasks) {
-        if (mode === 'replace') { repeatTasks = data.repeatTasks; }
-        else { const existRIds = new Set(repeatTasks.map(r => r.id)); (data.repeatTasks || []).forEach(r => { if (!existRIds.has(r.id)) repeatTasks.push(r); }); }
-        save('hrm_repeat_tasks', repeatTasks);
-      }
-      saveTasks(); save('hrm_handovers', handovers); save('hrm_members', members);
-      save('hrm_categories', categories); save('hrm_templates', templates);
-      save('hrm_personal_order', personalOrder);
-      alert(`가져오기 완료! 업무 ${tasks.length}건, 인수인계 ${handovers.length}건, 템플릿 ${templates.length}건`);
-      renderSettings(); renderDashboard();
+      _importData = data;
+      // 체크박스 라벨에 파일 내 건수 표시
+      const counts = {
+        tasks:       Array.isArray(data.tasks)       ? data.tasks.length       : 0,
+        members:     Array.isArray(data.members)     ? data.members.length     : 0,
+        categories:  Array.isArray(data.categories)  ? data.categories.length  : 0,
+        handovers:   Array.isArray(data.handovers)   ? data.handovers.length   : 0,
+        templates:   Array.isArray(data.templates)   ? data.templates.length   : 0,
+        repeatTasks: Array.isArray(data.repeatTasks) ? data.repeatTasks.length : 0,
+        memos:       data.memos && typeof data.memos === 'object' ? Object.keys(data.memos).length : 0,
+      };
+      const labels = {
+        tasks:       `📝 업무 목록 (${counts.tasks}건)`,
+        members:     `👥 팀원 정보 (${counts.members}명)`,
+        categories:  `🗂️ 카테고리 (${counts.categories}개)`,
+        handovers:   `🔄 인수인계 (${counts.handovers}건)`,
+        templates:   `📋 템플릿 (${counts.templates}건)`,
+        repeatTasks: `🔁 반복 업무 (${counts.repeatTasks}건)`,
+        memos:       `📌 메모 (${counts.memos}명)`,
+      };
+      Object.keys(labels).forEach(k => {
+        const span = document.getElementById('ic-' + k + '-label');
+        const cb   = document.getElementById('ic-' + k);
+        if (span) span.textContent = labels[k];
+        // 데이터가 없는 항목은 비활성화
+        if (cb) { cb.disabled = counts[k] === 0; if (counts[k] === 0) cb.checked = false; }
+      });
+      // 파일명 표시 + 기본 체크 (데이터 있는 항목)
+      const fnEl = document.getElementById('import-file-name');
+      if (fnEl) fnEl.textContent = '📄 ' + f.name + (data.exportedAt ? ' — ' + new Date(data.exportedAt).toLocaleString('ko-KR') : '');
+      ['tasks','members','categories','handovers','templates','repeatTasks','memos'].forEach(k => {
+        const cb = document.getElementById('ic-' + k);
+        if (cb && !cb.disabled) cb.checked = true;
+      });
+      document.getElementById('import-select-modal').classList.add('active');
     } catch(err) { alert('파일을 읽는 중 오류가 발생했습니다.\n' + err.message); }
   };
   reader.readAsText(f, 'utf-8');
+}
+
+// 선택 항목만 가져오기
+function doSelectiveImport() {
+  if (!_importData) return;
+  const data = _importData;
+  const selected = ['tasks','members','categories','handovers','templates','repeatTasks','memos']
+    .filter(k => { const el = document.getElementById('ic-' + k); return el && el.checked; });
+  if (!selected.length) { alert('가져올 항목을 하나 이상 선택하세요.'); return; }
+
+  const mode = document.querySelector('input[name="import-select-mode"]:checked')?.value || 'merge';
+  const labels = { tasks:'업무 목록', members:'팀원 정보', categories:'카테고리',
+                   handovers:'인수인계', templates:'템플릿', repeatTasks:'반복 업무', memos:'메모' };
+  const selectedNames = selected.map(k => labels[k]).join(', ');
+  const modeLabel = mode === 'replace' ? '덮어쓰기' : '병합';
+  if (!confirm(`[${modeLabel}] 선택한 항목(${selectedNames})을 가져오시겠습니까?`)) return;
+
+  closeModal('import-select-modal');
+
+  // ── 항목별 가져오기 ──
+  if (selected.includes('tasks') && Array.isArray(data.tasks)) {
+    if (mode === 'replace') {
+      tasks = data.tasks.filter(t => t.member && t.member !== 'undefined');
+    } else {
+      const existIds = new Set(tasks.map(t => t.id));
+      data.tasks.filter(t => t.member && t.member !== 'undefined').forEach(t => {
+        if (existIds.has(t.id)) {
+          // 중복 ID: updatedAt 기준 최신 유지
+          const idx = tasks.findIndex(x => x.id === t.id);
+          const lt = new Date(tasks[idx].updatedAt || tasks[idx].createdAt || 0).getTime();
+          const ft = new Date(t.updatedAt || t.createdAt || 0).getTime();
+          if (ft > lt) tasks[idx] = t;
+        } else {
+          tasks.push(t); existIds.add(t.id);
+        }
+      });
+    }
+    saveTasks();
+  }
+
+  if (selected.includes('members') && Array.isArray(data.members)) {
+    const validM = data.members.filter(m => m && m.id && m.id !== 'undefined' && m.name);
+    if (mode === 'replace') { if (validM.length) members = validM; }
+    else {
+      const existMIds = new Set(members.map(m => m.id));
+      validM.forEach(m => { if (!existMIds.has(m.id)) { members.push(m); existMIds.add(m.id); } });
+    }
+    save('hrm_members', members);
+  }
+
+  if (selected.includes('categories') && Array.isArray(data.categories)) {
+    if (mode === 'replace') { categories = data.categories; }
+    else { data.categories.forEach(c => { if (!categories.includes(c)) categories.push(c); }); }
+    save('hrm_categories', categories);
+  }
+
+  if (selected.includes('handovers') && Array.isArray(data.handovers)) {
+    if (mode === 'replace') { handovers = data.handovers; }
+    else {
+      const existHIds = new Set(handovers.map(h => h.id));
+      data.handovers.forEach(h => { if (!existHIds.has(h.id)) { handovers.push(h); existHIds.add(h.id); } });
+    }
+    save('hrm_handovers', handovers);
+  }
+
+  if (selected.includes('templates') && Array.isArray(data.templates)) {
+    if (mode === 'replace') { templates = data.templates; }
+    else {
+      const existTIds = new Set(templates.map(t => t.id));
+      data.templates.forEach(t => { if (!existTIds.has(t.id)) { templates.push(t); existTIds.add(t.id); } });
+    }
+    save('hrm_templates', templates);
+  }
+
+  if (selected.includes('repeatTasks') && Array.isArray(data.repeatTasks)) {
+    if (mode === 'replace') { repeatTasks = data.repeatTasks; }
+    else {
+      const existRIds = new Set(repeatTasks.map(r => r.id));
+      data.repeatTasks.forEach(r => { if (!existRIds.has(r.id)) { repeatTasks.push(r); existRIds.add(r.id); } });
+    }
+    save('hrm_repeat_tasks', repeatTasks);
+  }
+
+  if (selected.includes('memos') && data.memos && typeof data.memos === 'object') {
+    if (mode === 'replace') { memos = data.memos; }
+    else { memos = { ...data.memos, ...memos }; } // 현재 메모 우선, 파일 메모로 보완
+    save('hrm_memos', memos);
+  }
+
+  const summary = [];
+  if (selected.includes('tasks'))       summary.push(`업무 ${tasks.length}건`);
+  if (selected.includes('handovers'))   summary.push(`인수인계 ${handovers.length}건`);
+  if (selected.includes('templates'))   summary.push(`템플릿 ${templates.length}건`);
+  if (selected.includes('repeatTasks')) summary.push(`반복업무 ${repeatTasks.length}건`);
+  alert(`가져오기 완료!\n${summary.join(', ')}`);
+
+  _importData = null;
+  populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
+  renderTemplates(); renderRepeat(); _renderActivePage();
 }
 
 // ══════════════════════════════════════════
