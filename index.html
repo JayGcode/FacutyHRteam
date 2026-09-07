@@ -2362,6 +2362,7 @@ let calConfig          = load('hrm_cal_config', { enabled: false, calendarId: ''
 const _calCache        = {};   // 구글 캘린더 캐시 { 'YYYY-MM': { events, fetchedAt } }
 const CAL_CACHE_TTL    = 5 * 60 * 1000; // 5분
 let _driveLoading      = false;  // syncFromDrive 중에는 자동저장 억제
+let _driveInitialDone  = false;  // 첫 Drive 동기화 완료 여부 (로딩 표시 제어용)
 let _memberSaveTimers  = {};     // 직원별 자동저장 타이머 { memberId: timerId }
 let _sharedSaveTimer   = null;   // 공유 데이터 자동저장 타이머
 let _repeatSaveTimer   = null;   // 반복업무 자동저장 타이머 (즉시 저장)
@@ -2581,6 +2582,14 @@ function setKanbanView(mode) {
 }
 
 function renderKanban() {
+  const board = document.getElementById('kanban-board');
+
+  // ── Drive 첫 로딩 전이면 로딩 표시 ──
+  if (!_driveInitialDone && !_isPhone && driveConfig.url) {
+    if (board) board.innerHTML = '<div style="text-align:center;padding:60px 0;color:#9eaab6;font-size:15px;grid-column:1/-1;">⏳ 드라이브에서 업무 데이터를 불러오는 중입니다…</div>';
+    return;
+  }
+
   const q    = (document.getElementById('kanban-search')?.value || '').toLowerCase();
   const stf  = document.getElementById('kanban-status-filter')?.value || '';
   const prf  = document.getElementById('kanban-priority-filter')?.value || '';
@@ -2591,8 +2600,6 @@ function renderKanban() {
   const btnD = document.getElementById('btn-view-detail');
   if (btnS) btnS.classList.toggle('active', kanbanView === 'simple');
   if (btnD) btnD.classList.toggle('active', kanbanView === 'detail');
-
-  const board = document.getElementById('kanban-board');
   const colCount = members.length;
   board.style.gridTemplateColumns = `repeat(${colCount}, minmax(360px, 1fr))`;
 
@@ -3189,10 +3196,18 @@ function getFilteredTasks() {
 }
 
 function renderTasks() {
-  const filtered = getFilteredTasks();
-  document.getElementById('task-count').textContent = `${filtered.length}건`;
   const tbody = document.getElementById('task-table-body');
   const empty = document.getElementById('task-empty');
+  // ── Drive 첫 로딩 전이면 로딩 표시 ──
+  if (!_driveInitialDone && !_isPhone && driveConfig.url) {
+    document.getElementById('task-count').textContent = '';
+    if (tbody) tbody.innerHTML = '';
+    if (empty) { empty.style.display = ''; empty.textContent = '⏳ 드라이브에서 업무 데이터를 불러오는 중입니다…'; }
+    return;
+  }
+  if (empty && empty.textContent.includes('⏳')) empty.textContent = ''; // 로딩 메시지 초기화
+  const filtered = getFilteredTasks();
+  document.getElementById('task-count').textContent = `${filtered.length}건`;
   if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
   empty.style.display = 'none';
   tbody.innerHTML = filtered.sort((a,b) => {
@@ -3523,6 +3538,16 @@ function getPersonalTasks(memberId) {
 }
 
 function renderPersonal() {
+  const tabs    = document.getElementById('person-tabs');
+  const details = document.getElementById('person-details');
+
+  // ── Drive 첫 로딩 전이면 로딩 표시 (PC/태블릿만: 폰은 항상 Drive 직접 로드) ──
+  if (!_driveInitialDone && !_isPhone && driveConfig.url) {
+    if (tabs)    tabs.innerHTML    = '';
+    if (details) details.innerHTML = '<div style="text-align:center;padding:60px 0;color:#9eaab6;font-size:15px;">⏳ 드라이브에서 업무 데이터를 불러오는 중입니다…</div>';
+    return;
+  }
+
   if (!statAcadYear) statAcadYear = getCurrentAcadYear();
   const acadStart = new Date(statAcadYear, 2, 1);
   const acadEnd   = new Date(statAcadYear + 1, 2, 1);
@@ -3539,9 +3564,6 @@ function renderPersonal() {
     personalCatSel.innerHTML = '<option value="">전체 카테고리</option>' +
       catList.map(c => `<option value="${c}" ${personalCatFilter === c ? 'selected' : ''}>${c}</option>`).join('');
   }
-
-  const tabs    = document.getElementById('person-tabs');
-  const details = document.getElementById('person-details');
 
   tabs.innerHTML = members.filter(m => m && m.name).map((m, i) =>
     `<div class="person-tab ${i===currentPersonIdx?'active':''}" onclick="switchPerson(${i})" id="ptab-${i}">${m.name} (${m.role || ''})</div>`
@@ -5509,6 +5531,7 @@ async function syncFromDrive(isInitial = false) {
     _driveLoading = false;
     driveConfig.lastSync = new Date().toISOString();
     save('hrm_drive_config', driveConfig);
+    _driveInitialDone = true; // 첫 로딩 완료 → 로딩 표시 제거
     populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
     renderMemberSyncTable();
     renderTemplates(); renderRepeat();
@@ -5558,6 +5581,7 @@ async function syncFromDrive(isInitial = false) {
         if (status) status.textContent = '🔄 로컬 변경 사항을 드라이브에 저장하는 중...';
         showToast('🔄 변경 사항을 드라이브에 저장하는 중...');
         // 로컬 업로드 후 return하더라도 현재 페이지는 이미 렌더된 데이터로 갱신
+        _driveInitialDone = true;
         _renderActivePage();
         _pushChangedMembers(membersToSync);
         _initialLoadFailed = false;
@@ -5584,6 +5608,7 @@ async function syncFromDrive(isInitial = false) {
         memos         = loadRaw('hrm_memos',          {});
         personalOrder = loadRaw('hrm_personal_order', {});
         trash         = loadRaw('hrm_trash',          []);
+        _driveInitialDone = true; // 폴백이지만 첫 표시 완료
         populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
         renderTemplates(); renderRepeat();
         _renderActivePage(); // 현재 활성 페이지 갱신 (개인별 현황 등)
