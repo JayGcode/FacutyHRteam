@@ -2291,7 +2291,53 @@ const DEFAULT_CATEGORIES = [
   '복무관리', '급여/수당', '연구업적 평가', '교원 연수', '기타'
 ];
 
+// ── 기기 감지 (localStorage 로직보다 먼저 정의) ──
+// 폰: iPhone / Android 폰(Mobile 포함) / 기타 소형 모바일
+function isPhone() {
+  const ua = navigator.userAgent || '';
+  if (/iPhone/i.test(ua)) return true;
+  if (/Android/i.test(ua) && /Mobile/i.test(ua)) return true; // Android 태블릿은 Mobile 없음
+  if (/BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true;
+  return false;
+}
+// 태블릿: iPad / Galaxy Tab 등 Android 태블릿 → PC와 동일하게 동작
+function isTablet() {
+  const ua = navigator.userAgent || '';
+  if (/iPad/i.test(ua)) return true;
+  if (/Macintosh/i.test(ua) && 'ontouchstart' in window) return true; // iOS13+ iPad
+  if (/Android/i.test(ua) && !/Mobile/i.test(ua)) return true; // Android 태블릿
+  return false;
+}
+function isMobileOrTablet() { return isPhone() || isTablet(); }
+
+const _isPhone  = isPhone();  // 한 번만 계산
+const _isTablet = isTablet();
+
+// 폰 전용 스킵 키 (앱 암호 포함 — 폰은 항상 조회 전용이라 불필요)
+const PHONE_SKIP_KEYS = new Set([
+  'hrm_tasks','hrm_members','hrm_categories','hrm_handovers',
+  'hrm_templates','hrm_repeat_tasks','hrm_memos','hrm_personal_order',
+  'hrm_trash','hrm_app_passwords','hrm_member_sync_times',
+  'hrm_repeat_tasks_saved_at','hrm_last_backup_date'
+]);
+
+// PC/태블릿: 이 데이터 키들은 Drive가 우선 소스 → 앱 시작 시 기본값으로 출발
+// Drive 동기화 성공 시 Drive 데이터로 채워짐, Drive 장애 시에만 localStorage 폴백 사용
+const PC_DRIVE_PRIMARY_KEYS = new Set([
+  'hrm_tasks','hrm_members','hrm_categories','hrm_handovers',
+  'hrm_templates','hrm_repeat_tasks','hrm_memos','hrm_personal_order','hrm_trash'
+]);
+
+// localStorage를 항상 읽는 함수 (Drive 장애 시 폴백용)
+function loadRaw(key, def) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch { return def; }
+}
+
 function load(key, def) {
+  // 폰: 데이터·암호 키 모두 localStorage 무시 → Drive만 사용
+  if (_isPhone && PHONE_SKIP_KEYS.has(key)) return def;
+  // PC/태블릿: 데이터 키는 Drive 우선 → 기본값으로 시작 (Drive 장애 시 loadRaw로 폴백)
+  if (!_isPhone && PC_DRIVE_PRIMARY_KEYS.has(key)) return def;
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch { return def; }
 }
 const DEFAULT_DRIVE_URL  = 'https://script.google.com/macros/s/AKfycbyDVP9Wy3HdqQbL9abYT2c8tRnEc_FAz7NmZ4rOrQChFfX5b_K7MK2h3o2Qo-txbDWvTA/exec';
@@ -2318,10 +2364,13 @@ let memberSyncTimes    = load('hrm_member_sync_times', {}); // 직원별 마지�
 // save(key, val) — localStorage 저장 + Drive 자동저장 트리거
 // hintMemberId: hrm_memos / hrm_personal_order 저장 시 어떤 직원인지 알려주는 힌트
 function save(key, val, hintMemberId) {
-  localStorage.setItem(key, JSON.stringify(val));
-  // 반복업무 저장 시각 기록 (Drive 덮어쓰기 방지용)
-  if (key === 'hrm_repeat_tasks') {
-    localStorage.setItem('hrm_repeat_tasks_saved_at', new Date().toISOString());
+  // 폰에서 데이터 키는 localStorage에 쓰지 않음 (태블릿/PC는 캐시로 정상 저장)
+  if (!(_isPhone && PHONE_SKIP_KEYS.has(key))) {
+    localStorage.setItem(key, JSON.stringify(val));
+    // 반복업무 저장 시각 기록 (Drive 덮어쓰기 방지용)
+    if (key === 'hrm_repeat_tasks') {
+      localStorage.setItem('hrm_repeat_tasks_saved_at', new Date().toISOString());
+    }
   }
   if (_driveLoading || key === 'hrm_drive_config' || !driveConfig.enabled || !driveConfig.url) return;
   const SHARED_KEYS = ['hrm_members','hrm_categories','hrm_handovers','hrm_templates','hrm_trash'];
@@ -5464,8 +5513,8 @@ async function syncFromDrive(isInitial = false) {
     }
 
     // ── 로컬 미업로드 감지: Drive savedAt 갱신 후에 비교 ────────────────────
-    // 모바일/태블릿은 Drive 업로드 불가 → 이 체크 건너뜀 (return 막아서 렌더 정상 진행)
-    if (!isMobileOrTablet()) {
+    // 폰은 Drive 업로드 불가 → 이 체크 건너뜀 (return 막아서 렌더 정상 진행)
+    if (!isPhone()) {
       const membersToSync = new Set();
       tasks.forEach(t => {
         if (!t.member) return;
@@ -5490,6 +5539,21 @@ async function syncFromDrive(isInitial = false) {
     const errMsg = err ? (err.message || String(err)) : '';
     if (isInitial && !_initialLoadFailed) {
       _initialLoadFailed = true;
+      // PC/태블릿: Drive 장애 시 localStorage 폴백으로 즉시 표시
+      if (!_isPhone) {
+        tasks         = loadRaw('hrm_tasks',          []);
+        members       = loadRaw('hrm_members',        DEFAULT_MEMBERS);
+        categories    = loadRaw('hrm_categories',     DEFAULT_CATEGORIES);
+        handovers     = loadRaw('hrm_handovers',      []);
+        templates     = loadRaw('hrm_templates',      []);
+        repeatTasks   = loadRaw('hrm_repeat_tasks',   []);
+        memos         = loadRaw('hrm_memos',          {});
+        personalOrder = loadRaw('hrm_personal_order', {});
+        trash         = loadRaw('hrm_trash',          []);
+        populateFilters(); renderDashboard(); renderSettings(); updateTrashBadge();
+        renderTemplates(); renderRepeat();
+        showToast('⚠️ Drive 연결 실패 — 로컬 저장 데이터로 표시합니다 (재시도 중...)');
+      }
       if (status) status.textContent = '🔄 드라이브 연결 확인 중... (잠시 후 재시도)';
       setTimeout(() => syncFromDrive(false), 8000);
     } else {
@@ -5565,8 +5629,8 @@ function triggerSharedSave() {
 // ── 직원 한 명의 데이터를 Drive에 저장 ──
 async function pushMemberData(memberId, silent) {
   if (!driveConfig.url) return;
-  // 모바일/태블릿에서는 Drive 업로드 차단
-  if (isMobileOrTablet()) return;
+  // 폰에서는 Drive 업로드 차단 (태블릿은 PC와 동일)
+  if (isPhone()) return;
   // 유효하지 않은 memberId(undefined, null, 'undefined' 문자열 등) 방어
   if (!memberId || memberId === 'undefined' || !members.find(m => m.id === memberId)) return;
   const memberTasks = tasks.filter(t => t.member === memberId);
@@ -5612,8 +5676,8 @@ async function pushRepeatTasksData(silent) {
 // ── 공유 데이터(팀원·카테고리·인수인계·템플릿·휴지통)를 Drive에 저장 ──
 async function pushSharedData(silent) {
   if (!driveConfig.url) return;
-  // 모바일/태블릿에서는 Drive 업로드 차단
-  if (isMobileOrTablet()) return;
+  // 폰에서는 Drive 업로드 차단 (태블릿은 PC와 동일)
+  if (isPhone()) return;
   const payload = {
     action: 'saveShared',
     data: { members, categories, handovers, templates, trash, repeatTasks, savedAt: new Date().toISOString() }
@@ -5641,8 +5705,8 @@ async function pushSharedData(silent) {
 // ── 수동 전체 저장 (버튼) — shared.json + 전체 member_*.json ──
 async function _drivePush(silent) {
   if (!driveConfig.url) return;
-  // 모바일/태블릿에서는 Drive 업로드 차단
-  if (isMobileOrTablet()) return;
+  // 폰에서는 Drive 업로드 차단 (태블릿은 PC와 동일)
+  if (isPhone()) return;
   const btn    = document.getElementById('drive-save-btn');
   const status = document.getElementById('drive-status');
   if (!silent && btn) { btn.disabled = true; btn.textContent = '⏳ 저장 중...'; }
@@ -5673,8 +5737,8 @@ function syncToDrive(silent) { return _drivePush(silent); }
 // ── 변경된 팀원만 선택적으로 Drive에 Push ──
 // syncFromDrive 후 실제로 로컬에서 수정된 팀원 데이터만 업로드 (전원 덮어쓰기 방지)
 async function _pushChangedMembers(memberIds) {
-  // 모바일/태블릿에서는 Drive 업로드 차단
-  if (isMobileOrTablet()) return;
+  // 폰에서는 Drive 업로드 차단 (태블릿은 PC와 동일)
+  if (isPhone()) return;
   try {
     await pushSharedData(true); // 공유 데이터(팀원 목록·카테고리 등) 는 항상 포함
     for (const memberId of memberIds) {
@@ -5812,21 +5876,6 @@ try {
   }
 } catch(e) {}
 let appPasswords = load('hrm_app_passwords', { edit: DEFAULT_EDIT_PASSWORD, view: DEFAULT_VIEW_PASSWORD });
-// ── 모바일/태블릿 감지 (MacBook 트랙패드 오감지 방지: ontouchstart 기준) ──
-function isMobileOrTablet() {
-  const ua = navigator.userAgent || '';
-  // Android 폰/태블릿
-  if (/Android/i.test(ua)) return true;
-  // iPhone
-  if (/iPhone/i.test(ua)) return true;
-  // iPad: iOS13+ 이후 iPad는 UA가 Macintosh처럼 보이므로 ontouchstart로 구별
-  if (/iPad/i.test(ua)) return true;
-  if (/Macintosh/i.test(ua) && 'ontouchstart' in window) return true;
-  // 기타 모바일
-  if (/Mobile|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true;
-  return false;
-}
-
 let appLockMode  = 'edit'; // 'edit' | 'view' | 'locked'
 
 const LOCK_SESSION_KEY = 'hrm_lock_session';
@@ -5852,8 +5901,8 @@ function loadLockSession() {
 }
 
 function initAppLock() {
-  // 모바일/태블릿 → 암호 입력 없이 바로 조회 모드
-  if (isMobileOrTablet()) { setLockMode('view'); return; }
+  // 폰 → 암호 입력 없이 바로 조회 모드 (태블릿은 PC와 동일)
+  if (isPhone()) { setLockMode('view'); return; }
   const { edit, view } = appPasswords;
   if (!edit && !view) { appLockMode = 'edit'; return; } // 암호 미설정 → 편집 모드
   // 24시간 이내 편집 세션이 있으면 바로 복원
