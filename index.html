@@ -2408,6 +2408,10 @@ const _calCache        = {};   // 구글 캘린더 캐시 { 'YYYY-MM': { events,
 const CAL_CACHE_TTL    = 5 * 60 * 1000; // 5분
 let _driveLoading      = false;  // syncFromDrive 중에는 자동저장 억제
 let _driveInitialDone  = false;  // 첫 Drive 동기화 완료 여부 (로딩 표시 제어용)
+// B: 마지막으로 Drive에서 확인한 업무 ID 목록 (삭제 구분용)
+let lastKnownDriveTaskIds = new Set(
+  (() => { try { return JSON.parse(localStorage.getItem('hrm_last_drive_task_ids') || '[]'); } catch(e) { return []; } })()
+);
 let _memberSaveTimers  = {};     // 직원별 자동저장 타이머 { memberId: timerId }
 let _sharedSaveTimer   = null;   // 공유 데이터 자동저장 타이머
 let _repeatSaveTimer   = null;   // 반복업무 자동저장 타이머 (즉시 저장)
@@ -2953,6 +2957,11 @@ function deleteTaskKanban(id) {
   saveTasks(mid); renderKanban();
   document.getElementById('stat-total').textContent = tasks.length;
   showToast(`"${t.name}" → 휴지통으로 이동했습니다`);
+  // C: 삭제 즉시 Drive 업로드 (디바운스 없이) → 다른 기기에서 삭제가 되살아나는 현상 방지
+  if (!_isPhone && driveConfig.url) {
+    if (mid && mid !== 'undefined') pushMemberData(mid, true);
+    pushSharedData(true);
+  }
 }
 
 function openTaskModalFor(memberId) {
@@ -3514,6 +3523,11 @@ function deleteTask(id) {
   const mid = tasks.find(t => t.id === id)?.member;
   tasks = tasks.filter(t => t.id !== id);
   saveTasks(mid); renderTasks();
+  // C: 삭제 즉시 Drive 업로드 (디바운스 없이) → 다른 기기에서 삭제가 되살아나는 현상 방지
+  if (!_isPhone && driveConfig.url) {
+    if (mid && mid !== 'undefined') pushMemberData(mid, true);
+    pushSharedData(true);
+  }
 }
 
 function showDetail(id) {
@@ -3982,6 +3996,11 @@ function deleteTaskPersonal(id, memberId) {
   renderPersonal();
   document.getElementById('stat-total').textContent = tasks.length;
   showToast(`"${t.name}" → 휴지통으로 이동했습니다`);
+  // C: 삭제 즉시 Drive 업로드 (디바운스 없이) → 다른 기기에서 삭제가 되살아나는 현상 방지
+  if (!_isPhone && driveConfig.url) {
+    if (memberId && memberId !== 'undefined') pushMemberData(memberId, true);
+    pushSharedData(true);
+  }
 }
 
 // ══════════════════════════════════════════
@@ -5518,19 +5537,54 @@ async function syncFromDrive(isInitial = false) {
       tasks.forEach(t => localMap[t.id] = t);
       const allIds = new Set([...Object.keys(localMap), ...Object.keys(driveMap)]);
       const merged = [];
+      // B: 로컬에서 삭제한 업무 → Drive 재반영이 필요한 담당자 모음
+      const locallyDeletedMembers = new Set();
       allIds.forEach(id => {
         const local = localMap[id];
         const drive = driveMap[id];
-        if (!local)  { merged.push(drive);  return; }  // 드라이브에만 있으면 추가
-        if (!drive)  { merged.push(local);  return; }  // 로컬에만 있으면 유지
-        // 둘 다 있으면 updatedAt(없으면 createdAt) 비교 → 최신 유지
-        const lt = new Date(local.updatedAt || local.createdAt || 0).getTime();
-        const dt = new Date(drive.updatedAt || drive.createdAt || 0).getTime();
-        merged.push(dt >= lt ? drive : local);
+        if (local && drive) {
+          // 둘 다 있으면 updatedAt(없으면 createdAt) 비교 → 최신 유지
+          const lt = new Date(local.updatedAt || local.createdAt || 0).getTime();
+          const dt = new Date(drive.updatedAt || drive.createdAt || 0).getTime();
+          merged.push(dt >= lt ? drive : local);
+          return;
+        }
+        if (!local && drive) {
+          if (lastKnownDriveTaskIds.has(id)) {
+            // 이전 Drive 동기화 시 존재했으나 로컬에 없음 → 이 기기에서 삭제한 것
+            // Drive에 삭제를 반영하기 위해 해당 담당자 재업로드 큐에 추가
+            if (drive.member && drive.member !== 'undefined') locallyDeletedMembers.add(drive.member);
+            // merged에 추가하지 않아 로컬에서도 제거
+          } else {
+            // 처음 보는 ID → Drive에 새로 생긴 업무, 로컬에 추가
+            merged.push(drive);
+          }
+          return;
+        }
+        if (local && !drive) {
+          if (lastKnownDriveTaskIds.has(id)) {
+            // 이전 Drive 동기화 시 존재했으나 Drive에 없음 → 다른 기기에서 삭제한 것
+            // merged에 추가하지 않아 로컬에서도 제거
+          } else {
+            // Drive에 없고 lastKnown에도 없음 → 이 기기에서 새로 만든 업무, 유지
+            merged.push(local);
+          }
+          return;
+        }
       });
       // member='undefined' 태스크 최종 정제 (로컬에 남아있던 오염 데이터 제거)
       tasks = merged.filter(t => t.member && t.member !== 'undefined');
       save('hrm_tasks', tasks);
+      // B: Drive에서 받은 업무 ID를 lastKnown으로 저장 (다음 동기화 시 삭제 감지에 활용)
+      lastKnownDriveTaskIds = new Set(driveTasks.map(t => t.id));
+      try { localStorage.setItem('hrm_last_drive_task_ids', JSON.stringify([...lastKnownDriveTaskIds])); } catch(e) {}
+      // B: 이 기기에서 삭제한 업무를 Drive에서 다시 받아왔다면 → 해당 담당자 즉시 재업로드로 삭제 전파
+      if (locallyDeletedMembers.size > 0 && !_isPhone && driveConfig.url) {
+        locallyDeletedMembers.forEach(mid => {
+          if (mid && mid !== 'undefined' && members.find(m => m.id === mid))
+            pushMemberData(mid, true);  // 디바운스 없이 즉시 (삭제 재등장 방지)
+        });
+      }
     }
 
     // ── 공유 데이터 (팀원·카테고리·인수인계·템플릿·휴지통) ──
