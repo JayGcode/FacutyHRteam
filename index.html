@@ -5554,7 +5554,7 @@ async function syncFromDrive(isInitial = false) {
             // 이전 Drive 동기화 시 존재했으나 로컬에 없음 → 이 기기에서 삭제한 것
             // Drive에 삭제를 반영하기 위해 해당 담당자 재업로드 큐에 추가
             if (drive.member && drive.member !== 'undefined') locallyDeletedMembers.add(drive.member);
-            // merged에 추가하지 않아 로컬에서도 제거
+            // merged에 추가하지 않아 로컬에서도 되살아나기 방지
           } else {
             // 처음 보는 ID → Drive에 새로 생긴 업무, 로컬에 추가
             merged.push(drive);
@@ -5562,13 +5562,10 @@ async function syncFromDrive(isInitial = false) {
           return;
         }
         if (local && !drive) {
-          if (lastKnownDriveTaskIds.has(id)) {
-            // 이전 Drive 동기화 시 존재했으나 Drive에 없음 → 다른 기기에서 삭제한 것
-            // merged에 추가하지 않아 로컬에서도 제거
-          } else {
-            // Drive에 없고 lastKnown에도 없음 → 이 기기에서 새로 만든 업무, 유지
-            merged.push(local);
-          }
+          // 로컬에만 있는 업무는 항상 유지 (안전 우선)
+          // Drive 오류·미완 응답으로 "없음"이 "삭제"로 오인될 위험 → 로컬 삭제는 하지 않음
+          // Drive 측 삭제 전파는 C(즉시 업로드)가 담당
+          merged.push(local);
           return;
         }
       });
