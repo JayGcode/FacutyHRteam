@@ -2996,13 +2996,18 @@ function addSubtaskField(name='', done=false, sid=null) {
   const row = document.createElement('div');
   row.className = 'subtask-input-row';
   row.dataset.sid = id;
-  row.draggable = true;
+  row.draggable = false;  // 핸들 mousedown 시에만 활성화
 
   // ⓪ 드래그 핸들
   const handle = document.createElement('span');
   handle.className = 'sub-drag-handle';
   handle.textContent = '⠿';
   handle.title = '드래그하여 순서 변경';
+  // 핸들을 잡을 때만 row를 드래그 가능하게 전환
+  handle.addEventListener('mousedown', () => {
+    row.draggable = true;
+    document.addEventListener('mouseup', () => { row.draggable = false; }, { once: true });
+  });
 
   // ① 체크박스
   const cb = document.createElement('input');
@@ -3017,6 +3022,8 @@ function addSubtaskField(name='', done=false, sid=null) {
   inp.className = 'sub-name-input' + (done ? ' done-text' : '');
   inp.value = name;
   inp.placeholder = '하위 업무명을 입력하세요';
+  inp.draggable = false;
+  inp.addEventListener('dragstart', e => e.stopPropagation()); // 텍스트 선택 드래그 차단 방지
   inp.addEventListener('input', updateSubtaskProgress);
   // Enter 키로 다음 하위 업무 즉시 추가
   inp.addEventListener('keydown', e => {
@@ -3028,6 +3035,7 @@ function addSubtaskField(name='', done=false, sid=null) {
   del.type = 'button';
   del.className = 'sub-del-btn';
   del.textContent = '삭제';
+  del.draggable = false;
   del.addEventListener('click', () => { row.remove(); updateSubtaskProgress(); });
 
   // ④ 드래그 이벤트
@@ -3038,6 +3046,7 @@ function addSubtaskField(name='', done=false, sid=null) {
     setTimeout(() => row.classList.add('sub-dragging'), 0);
   });
   row.addEventListener('dragend', () => {
+    row.draggable = false;  // 드래그 완료 후 원상복구
     document.body.classList.remove('sub-modal-dragging');
     row.classList.remove('sub-dragging');
     list.querySelectorAll('.subtask-input-row').forEach(r => {
