@@ -2851,6 +2851,7 @@ function dropOnCol(e, memberId) {
   const col = document.getElementById('kcol-' + memberId);
   if (col) col.classList.remove('drag-over');
   if (!dragTaskId) return;
+  if (!editAllowed()) return;
   const t = tasks.find(x => x.id === dragTaskId);
   if (!t || t.member === memberId) return;
   const fromName = memberName(t.member);
@@ -2894,6 +2895,7 @@ function kDrop(e, targetId, targetMember) {
   document.querySelectorAll('.sticky-card.kdrag-over-top,.sticky-card.kdrag-over-bottom')
     .forEach(el => { el.classList.remove('kdrag-over-top'); el.classList.remove('kdrag-over-bottom'); });
   if (!dragTaskId || dragTaskId === targetId) return;
+  if (!editAllowed()) return;
 
   const dragged = tasks.find(x => x.id === dragTaskId);
   if (!dragged) return;
@@ -2931,6 +2933,7 @@ function kDrop(e, targetId, targetMember) {
 }
 
 function quickStatusKanban(id, st) {
+  if (!editAllowed()) return;
   const t = tasks.find(x => x.id === id);
   if (!t) return;
   t.status = st;
@@ -3121,6 +3124,7 @@ function getSubtasksFromModal() {
 }
 
 function toggleSubtask(taskId, subId, done) {
+  if (!editAllowed()) return;
   const t = tasks.find(x => x.id === taskId);
   if (!t || !t.subtasks) return;
   const sub = t.subtasks.find(s => s.id === subId);
@@ -3307,6 +3311,7 @@ function renderTasks() {
 }
 
 function quickStatus(id, st) {
+  if (!editAllowed()) return;
   const t = tasks.find(x => x.id === id);
   if (!t) return;
   const prev = t.status;
@@ -3338,6 +3343,7 @@ function toggleSelectAll(cb) {
 }
 
 function bulkComplete() {
+  if (!editAllowed()) return;
   const ids = [...document.querySelectorAll('.task-check:checked')].map(c => c.dataset.id);
   if (!ids.length) return alert('업무를 선택하세요.');
   const affected = [...new Set(ids.map(id => tasks.find(x => x.id === id)?.member).filter(Boolean))];
@@ -3762,6 +3768,7 @@ function buildMemoCard(memberId, memo) {
 
 /** 메모 추가 */
 function addMemo(memberId) {
+  if (!editAllowed()) return;
   if (!memos[memberId]) memos[memberId] = [];
   const colorIdx = memos[memberId].length % MEMO_COLORS.length;
   const memo = {
@@ -3784,6 +3791,7 @@ function addMemo(memberId) {
 
 /** 메모 텍스트 저장 (blur 시) */
 function saveMemoText(memberId, memoId, text) {
+  if (!editAllowed()) return;
   if (!memos[memberId]) return;
   const memo = memos[memberId].find(m => m.id === memoId);
   if (memo) { memo.text = text; save('hrm_memos', memos, memberId); }
@@ -3791,6 +3799,7 @@ function saveMemoText(memberId, memoId, text) {
 
 /** 메모 색상 변경 */
 function changeMemoColor(memberId, memoId, color) {
+  if (!editAllowed()) return;
   if (!memos[memberId]) return;
   const memo = memos[memberId].find(m => m.id === memoId);
   if (!memo) return;
@@ -3808,6 +3817,7 @@ function changeMemoColor(memberId, memoId, color) {
 
 /** 메모 삭제 → 휴지통 이동 */
 function deleteMemo(memberId, memoId) {
+  if (!editAllowed()) return;
   if (!memos[memberId]) return;
   const memo = memos[memberId].find(m => m.id === memoId);
   if (!memo) return;
